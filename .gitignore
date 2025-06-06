@@ -192,3 +192,86 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# TTS Trainer Specific
+# Data files
+resources/videos/*
+!resources/videos/.gitkeep
+resources/audio/*
+!resources/audio/.gitkeep
+resources/transcripts/*
+!resources/transcripts/.gitkeep
+resources/datasets/*
+!resources/datasets/.gitkeep
+
+# Model artifacts
+artifacts/models/*
+!artifacts/models/.gitkeep
+artifacts/checkpoints/*
+!artifacts/checkpoints/.gitkeep
+artifacts/metrics/*
+!artifacts/metrics/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# Environment variables
+.env.local
+.env.production
+
+# Discord bot token
+discord_token.txt
+
+# CUDA/GPU cache
+.nv/
+
+# Model downloads
+models/
+*.pth
+*.pt
+*.bin
+*.safetensors
+
+# Audio processing temporary files
+*.wav.tmp
+*.mp3.tmp
+*.flac.tmp
+
+# FFmpeg temporary files
+ffmpeg2pass-*.log
+ffmpeg2pass-*.log.mbtree
+
+# Training temporary files
+wandb/
+mlruns/

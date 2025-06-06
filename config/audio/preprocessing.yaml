@@ -1,0 +1,77 @@
+# Input audio settings
+input:
+  sample_rate: 48000  # Input sample rate (videos often 48kHz)
+  format: "wav"       # Preferred input format
+  channels: "mono"    # Convert to mono for TTS
+  bit_depth: 16       # 16-bit PCM
+  
+# Audio preprocessing pipeline
+preprocessing:
+  # Silence removal
+  trim_silence:
+    enabled: true
+    threshold_db: -40    # dB threshold for silence
+    min_silence_len: 500 # Minimum silence length in ms
+    keep_silence: 100    # Keep this much silence in ms
+    
+  # Noise reduction
+  denoise:
+    enabled: true
+    method: "rnnoise"    # rnnoise, spectral_gating, wiener
+    strength: 0.5        # 0.0 to 1.0, how aggressive
+    
+  # Volume normalization
+  normalize:
+    enabled: true
+    method: "lufs"       # lufs, peak, rms
+    target_lufs: -23     # EBU R128 standard
+    max_peak: -3.0       # dBFS
+    
+  # Equalization (optional)
+  eq:
+    enabled: false
+    high_pass: 80        # Hz, remove low rumble
+    low_pass: 8000       # Hz, remove high noise
+    
+  # Resampling
+  resample:
+    target_rate: 24000   # Target sample rate for TTS models
+    quality: "high"      # low, medium, high
+    
+  # Audio quality validation
+  quality_check:
+    min_duration: 1.0    # Minimum clip duration in seconds
+    max_duration: 30.0   # Maximum clip duration in seconds
+    snr_threshold: 15    # Minimum SNR in dB
+    
+# Output settings
+output:
+  sample_rate: 24000   # TTS models typically use 22050 or 24000
+  format: "wav"        # wav, flac
+  bit_depth: 16        # 16 or 24
+  channels: 1          # Mono
+  
+# Advanced processing
+advanced:
+  # Voice activity detection
+  vad:
+    enabled: true
+    aggressive: 1        # 0-3, how aggressive VAD is
+    frame_duration: 30   # Frame duration in ms
+    
+  # Audio enhancement
+  enhancement:
+    enabled: false
+    method: "spectral_subtraction"  # spectral_subtraction, wiener_filter
+    
+  # Chunk processing
+  chunking:
+    enabled: false
+    chunk_length: 10.0   # Seconds per chunk
+    overlap: 1.0         # Overlap between chunks
+    
+# Processing performance
+performance:
+  parallel_jobs: 4     # Number of parallel audio processing jobs
+  chunk_size: 1024     # Processing chunk size
+  use_gpu: false       # Use GPU for audio processing if available 

@@ -1,0 +1,202 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Development Workflow Guide
+
+## Project Setup
+
+1. **Dependencies**: Install from [requirements.txt](mdc:requirements.txt)
+2. **Environment**: GPU setup required for model training/inference
+3. **Entry Point**: Use [main.py](mdc:main.py) CLI for all operations
+
+### Windows Setup Commands
+```powershell
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+.\venv\Scripts\Activate.ps1
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Verify GPU setup
+python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+```
+
+### Cross-Platform Setup
+```python
+# Use Python for cross-platform operations
+from pathlib import Path
+Path("logs").mkdir(exist_ok=True)
+Path("temp").mkdir(exist_ok=True)
+```
+
+## Common Development Tasks
+
+### Running the Pipeline
+```powershell
+# Windows PowerShell commands
+# Full pipeline from videos to trained model
+python main.py run-pipeline --input resources\videos\ --output artifacts\models\
+
+# Individual stages
+python main.py extract-audio --input resources\videos\
+python main.py transcribe --input resources\audio\
+python main.py train --model xtts_v2 --dataset resources\datasets\
+```
+
+### Configuration Management
+- Edit [config/models/xtts_v2.yaml](mdc:config/models/xtts_v2.yaml) for XTTS settings
+- Edit [config/audio/preprocessing.yaml](mdc:config/audio/preprocessing.yaml) for audio processing
+- Training configs in [config/training/](mdc:config/training)
+
+### Testing and Validation
+```powershell
+# Windows PowerShell
+pytest tests\unit\
+pytest tests\integration\
+```
+
+### Discord Bot Development
+- Main bot logic in [src/discord_bot/bot.py](mdc:src/discord_bot/bot.py)
+- Voice handling in [src/discord_bot/voice_handler.py](mdc:src/discord_bot/voice_handler.py)
+- Streaming integration in [src/discord_bot/audio_streaming.py](mdc:src/discord_bot/audio_streaming.py)
+
+### Directory Operations (Windows)
+```powershell
+# Create directories
+New-Item -ItemType Directory -Force -Path "new\directory"
+
+# List directory contents
+Get-ChildItem -Force
+
+# Remove directory
+Remove-Item -Recurse -Force "directory"
+
+# Copy files
+Copy-Item -Recurse "source" "destination"
+```
+
+## Code Organization Principles
+
+### Pipeline Stages
+- Each stage in [src/pipeline/stages/](mdc:src/pipeline/stages) is independent
+- Stages validate input/output for data quality
+- Orchestrator in [src/pipeline/orchestrator.py](mdc:src/pipeline/orchestrator.py) manages flow
+
+### Model Architecture
+- Base interface: [src/models/base_trainer.py](mdc:src/models/base_trainer.py)
+- Model-specific implementations in [src/models/xtts/](mdc:src/models/xtts) and [src/models/vits/](mdc:src/models/vits)
+- Unified training interface across all models
+
+### Data Management
+- Raw data: [resources/videos/](mdc:resources/videos)
+- Processed data: [resources/audio/](mdc:resources/audio), [resources/transcripts/](mdc:resources/transcripts)
+- Training datasets: [resources/datasets/](mdc:resources/datasets)
+- Model outputs: [artifacts/models/](mdc:artifacts/models)
+
+### Documentation
+- Implementation roadmap: [docs/implementation_roadmap.md](mdc:docs/implementation_roadmap.md)
+- Research notes: [docs/deep_research_plan.md](mdc:docs/deep_research_plan.md)
+- Architecture guidance in [.cursor/rules/](mdc:.cursor/rules)
+
+## Platform-Specific Development
+
+### Windows Development
+- Use PowerShell for terminal operations
+- Paths use backslashes in commands: `resources\videos\`
+- Activate venv: `.\venv\Scripts\Activate.ps1`
+- Check Windows-specific dependencies (Visual C++ for some packages)
+
+### Cross-Platform Python Code
+```python
+# Always use pathlib for file operations
+from pathlib import Path
+
+# Cross-platform path handling
+video_dir = Path("resources") / "videos"
+config_file = Path("config") / "models" / "xtts_v2.yaml"
+
+# Cross-platform directory creation
+output_dir = Path("artifacts") / "models"
+output_dir.mkdir(parents=True, exist_ok=True)
+```
+
+## Debugging and Monitoring
+
+### Logging
+- Structured logging via [src/utils/logging_utils.py](mdc:src/utils/logging_utils.py)
+- Log files stored in `logs\` directory (Windows)
+- Different log levels for development vs production
+
+### Metrics and Checkpoints
+- Training metrics saved to [artifacts/metrics/](mdc:artifacts/metrics)
+- Model checkpoints in [artifacts/checkpoints/](mdc:artifacts/checkpoints)
+- Quality metrics from validators tracked automatically
+
+### Jupyter Notebooks
+- Data exploration: [notebooks/data_exploration.ipynb](mdc:notebooks/data_exploration.ipynb)
+- Model comparison: [notebooks/model_comparison.ipynb](mdc:notebooks/model_comparison.ipynb)
+- Training analysis: [notebooks/training_analysis.ipynb](mdc:notebooks/training_analysis.ipynb)
+
+## Performance Optimization
+
+### GPU Memory Management (Windows)
+```powershell
+# Check GPU status
+nvidia-smi
+
+# Monitor GPU usage
+Get-Process | Where-Object {$_.ProcessName -eq "python"}
+```
+
+### Audio Processing
+- Parallel processing in [src/pipeline/stages/audio_preprocessor.py](mdc:src/pipeline/stages/audio_preprocessor.py)
+- Chunk-based processing for large files
+- Quality validation to prevent bad data
+
+### Real-time Inference
+- Streaming implementations in model classes
+- Discord bot optimized for low-latency response
+- Async operations for concurrent STT/TTS
+
+## Environment Variables (Windows)
+```powershell
+# Set environment variables
+$env:DISCORD_TOKEN = "your_token_here"
+$env:CUDA_VISIBLE_DEVICES = "0"
+
+# Check environment variables
+Get-ChildItem Env: | Where-Object Name -like "*CUDA*"
+```
+
+## Common Windows Issues and Solutions
+
+### 1. **PowerShell Execution Policy**
+```powershell
+# If scripts are blocked
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### 2. **Long Path Support**
+```powershell
+# Enable long path support if needed
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+```
+
+### 3. **FFmpeg Installation**
+- Download from https://ffmpeg.org/download.html
+- Add to PATH or place in project directory
+- Verify: `ffmpeg -version`
+
+### 4. **CUDA Setup**
+- Install NVIDIA drivers
+- Install CUDA Toolkit
+- Install cuDNN
+- Verify: `python -c "import torch; print(torch.cuda.is_available())"`
+
+
+

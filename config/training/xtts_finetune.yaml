@@ -1,0 +1,73 @@
+# XTTS v2 Fine-tuning Configuration
+# Note: XTTS v2 typically uses zero-shot voice cloning
+# This config is for advanced fine-tuning scenarios
+
+training:
+  enabled: false  # XTTS v2 usually doesn't need training
+  approach: "zero_shot"  # zero_shot, fine_tune, full_train
+  
+  # Dataset requirements
+  dataset:
+    min_duration_hours: 0.1  # 6 minutes minimum
+    max_duration_hours: 10.0
+    sample_rate: 22050
+    format: "wav"
+    
+  # Training hyperparameters (if fine-tuning)
+  hyperparameters:
+    batch_size: 8
+    learning_rate: 1e-4
+    epochs: 10
+    warmup_steps: 1000
+    gradient_accumulation_steps: 1
+    
+  # Optimization
+  optimizer:
+    type: "adamw"
+    weight_decay: 0.01
+    beta1: 0.9
+    beta2: 0.999
+    
+  # Scheduler
+  scheduler:
+    type: "linear_warmup"
+    warmup_steps: 1000
+    
+  # Checkpointing
+  checkpointing:
+    save_frequency: 500  # steps
+    keep_best_n: 3
+    metric_for_best: "validation_loss"
+    
+# Voice cloning settings
+voice_cloning:
+  reference_audio:
+    min_length_seconds: 6
+    max_length_seconds: 30
+    quality_threshold: 0.8
+    
+  # Speaker embedding
+  speaker_embedding:
+    enable_fine_tuning: false
+    embedding_dim: 512
+    
+# Validation
+validation:
+  enabled: true
+  split_ratio: 0.1
+  metrics:
+    - "mel_loss"
+    - "speaker_similarity"
+    - "naturalness_score"
+    
+# Hardware requirements
+hardware:
+  min_vram_gb: 8
+  recommended_vram_gb: 16
+  precision: "fp16"  # fp32, fp16, bf16
+  
+# Output settings
+output:
+  sample_rate: 22050
+  audio_format: "wav"
+  save_intermediate: false 

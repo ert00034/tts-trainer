@@ -1,0 +1,93 @@
+---
+description: Any time you're wondering where a file lives, or creating a new file, read this rule
+globs: 
+alwaysApply: false
+---
+# TTS Trainer Architecture Guide
+
+This project uses a **Pipeline-Orchestrated Architecture** for converting videos to TTS training data.
+
+## Core Architecture
+
+The pipeline follows this flow: Video → Audio → Transcription → Dataset → Training → Deployment
+
+### Main Entry Points
+
+- [main.py](mdc:main.py) - CLI interface for all operations
+- [src/pipeline/orchestrator.py](mdc:src/pipeline/orchestrator.py) - Main pipeline controller
+- [src/discord_bot/bot.py](mdc:src/discord_bot/bot.py) - Discord bot entry point
+
+### Configuration System
+
+Configuration is hierarchical and stored in YAML files:
+- [config/models/](mdc:config/models) - Model-specific configurations (XTTS, VITS, Tortoise)
+- [config/audio/preprocessing.yaml](mdc:config/audio/preprocessing.yaml) - Audio processing settings
+- [config/training/](mdc:config/training) - Training hyperparameters
+
+### Pipeline Stages
+
+Each stage in [src/pipeline/stages/](mdc:src/pipeline/stages) implements the `PipelineStage` interface:
+
+1. [src/pipeline/stages/video_processor.py](mdc:src/pipeline/stages/video_processor.py) - Extract audio from videos
+2. [src/pipeline/stages/audio_extractor.py](mdc:src/pipeline/stages/audio_extractor.py) - Audio format conversion
+3. [src/pipeline/stages/audio_preprocessor.py](mdc:src/pipeline/stages/audio_preprocessor.py) - Denoise, normalize, trim
+4. [src/pipeline/stages/transcriber.py](mdc:src/pipeline/stages/transcriber.py) - Generate transcripts with Whisper
+5. [src/pipeline/stages/dataset_builder.py](mdc:src/pipeline/stages/dataset_builder.py) - Create training datasets
+6. [src/pipeline/stages/model_trainer.py](mdc:src/pipeline/stages/model_trainer.py) - Train/fine-tune models
+
+### Model Implementations
+
+- [src/models/base_trainer.py](mdc:src/models/base_trainer.py) - Base class for all model trainers
+- [src/models/xtts/](mdc:src/models/xtts) - XTTS v2 implementation (zero-shot voice cloning)
+- [src/models/vits/](mdc:src/models/vits) - VITS implementation (fine-tuning for quality)
+
+### Data Flow
+
+- Input: [resources/videos/](mdc:resources/videos) - Place source video files here
+- Intermediate: [resources/audio/](mdc:resources/audio) - Extracted and processed audio
+- Transcripts: [resources/transcripts/](mdc:resources/transcripts) - Generated text transcriptions
+- Training Data: [resources/datasets/](mdc:resources/datasets) - Final formatted datasets
+- Outputs: [artifacts/models/](mdc:artifacts/models) - Trained model files
+
+### Documentation
+
+- [docs/implementation_roadmap.md](mdc:docs/implementation_roadmap.md) - Feature implementation plan with testing priorities
+- [docs/deep_research_plan.md](mdc:docs/deep_research_plan.md) - Research notes and architecture decisions
+
+### Validation and Quality Control
+
+Quality validators in [src/pipeline/validators/](mdc:src/pipeline/validators):
+- [src/pipeline/validators/audio_quality.py](mdc:src/pipeline/validators/audio_quality.py) - Audio quality metrics
+- [src/pipeline/validators/transcript_alignment.py](mdc:src/pipeline/validators/transcript_alignment.py) - Text-audio alignment
+
+### Utilities
+
+Common utilities in [src/utils/](mdc:src/utils):
+- [src/utils/audio_utils.py](mdc:src/utils/audio_utils.py) - Audio processing functions
+- [src/utils/file_utils.py](mdc:src/utils/file_utils.py) - File management utilities
+- [src/utils/logging_utils.py](mdc:src/utils/logging_utils.py) - Structured logging
+
+## Development Patterns
+
+### Adding New Pipeline Stages
+1. Inherit from `PipelineStage` in [src/pipeline/stages/](mdc:src/pipeline/stages)
+2. Implement `validate_input()`, `process()`, `validate_output()`
+3. Register in [src/pipeline/orchestrator.py](mdc:src/pipeline/orchestrator.py)
+
+### Adding New Models
+1. Create directory in [src/models/](mdc:src/models)
+2. Inherit from [src/models/base_trainer.py](mdc:src/models/base_trainer.py)
+3. Add configuration in [config/models/](mdc:config/models)
+
+### Configuration Loading
+- All configs are loaded via YAML files
+- Override configs with environment variables or CLI args
+- Model configs determine training hyperparameters and inference settings
+
+### Testing Strategy
+- Unit tests for individual stages in [tests/unit/](mdc:tests/unit)
+- Integration tests for full pipelines in [tests/integration/](mdc:tests/integration)
+- Use [notebooks/](mdc:notebooks) for data exploration and model analysis
+
+
+
