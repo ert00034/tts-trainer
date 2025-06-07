@@ -275,3 +275,6 @@ ffmpeg2pass-*.log.mbtree
 # Training temporary files
 wandb/
 mlruns/
+
+# Local archives
+archives/
