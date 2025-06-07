@@ -11,8 +11,8 @@ import discord
 from discord.ext import commands
 import numpy as np
 
-from ..models.base_trainer import ModelRegistry, InferenceResult
-from ..utils.logging_utils import get_logger
+from models.base_trainer import ModelRegistry, InferenceResult
+from utils.logging_utils import get_logger
 
 
 logger = get_logger(__name__)

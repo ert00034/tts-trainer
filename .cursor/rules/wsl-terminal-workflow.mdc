@@ -1,0 +1,56 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# WSL Terminal Workflow Guide
+
+## User Environment
+- User operates in a WSL (Windows Subsystem for Linux) environment
+- User prefers to run commands in their WSL terminal rather than through chat interface
+- Project is located at: `\\wsl$\Ubuntu\home\ert\code\tts-trainer`
+
+## Command Execution Guidelines
+
+### DO NOT:
+- Ask the user to run commands directly in the chat interface
+- Use the `run_terminal_cmd` tool without explicit user request
+- Prompt "run this command" or "execute this"
+
+### DO:
+- Provide commands formatted for copying to WSL terminal
+- Use clear, copy-friendly command formatting
+- Ask user to copy results back to chat for analysis
+- Be explicit about the working directory when needed
+
+## Command Format Examples
+
+### Good Format:
+```bash
+# Copy and run this in your WSL terminal:
+cd ~/code/tts-trainer
+pip install -r requirements.txt
+```
+
+### Follow-up Request:
+"Please copy and paste the output back here so I can help troubleshoot any issues."
+
+### For Multiple Commands:
+```bash
+# Run these commands one by one in your WSL terminal:
+cd ~/code/tts-trainer
+source venv/bin/activate
+pip install -r requirements.txt
+python main.py --help
+```
+
+## Working Directory Notes
+- User's project root: `~/code/tts-trainer` (in WSL)
+- Virtual environment: `~/code/tts-trainer/venv`
+- Activation command: `source venv/bin/activate`
+
+## Python Environment
+- User has Python 3.12.3 in WSL
+- Uses virtual environments for project isolation
+- Prefers explicit path references when needed
+

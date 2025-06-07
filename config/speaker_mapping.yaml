@@ -1,0 +1,77 @@
+# Speaker Mapping Configuration
+# Maps generic speaker IDs from diarization to character names
+
+# Character voice profiles for Pokemon
+characters:
+  # Main characters
+  ash:
+    name: "Ash Ketchum"
+    description: "Main protagonist, young energetic voice"
+    aliases: ["ash", "satoshi"]
+    target_hours: 2.0  # Target training hours
+    
+  misty:
+    name: "Misty"
+    description: "Gym leader, confident female voice"
+    aliases: ["misty", "kasumi"]
+    target_hours: 1.5
+    
+  brock:
+    name: "Brock"
+    description: "Pokemon breeder, deeper male voice"
+    aliases: ["brock", "takeshi"]
+    target_hours: 1.5
+    
+  jessie:
+    name: "Jessie"
+    description: "Team Rocket member, dramatic female voice"
+    aliases: ["jessie"]
+    target_hours: 1.0
+    
+  james:
+    name: "James"
+    description: "Team Rocket member, flamboyant male voice"
+    aliases: ["james"]
+    target_hours: 1.0
+    
+  meowth:
+    name: "Meowth"
+    description: "Talking Pokemon, unique cat-like voice"
+    aliases: ["meowth", "nyarth"]
+    target_hours: 0.5
+
+# Mapping configuration
+mapping:
+  # Automatic mapping based on voice characteristics
+  enable_auto_mapping: false
+  
+  # Manual mapping (speaker_id -> character)
+  # These will be filled in after diarization
+  manual_mappings: {}
+  
+  # Minimum segment duration for training (seconds)
+  min_segment_duration: 2.0
+  max_segment_duration: 15.0
+  
+  # Quality thresholds
+  min_confidence: 0.7
+  min_snr: 10.0
+  
+  # Speaker consistency validation
+  validate_consistency: true
+  consistency_threshold: 0.8
+
+# Output organization
+output:
+  # Directory structure
+  segments_per_speaker: true
+  include_metadata: true
+  
+  # File naming
+  naming_pattern: "{episode}_{character}_{index:03d}.wav"
+  
+  # Audio format for segments
+  format: "wav"
+  sample_rate: 24000
+  bit_depth: 16
+  channels: 1 

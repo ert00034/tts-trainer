@@ -40,9 +40,9 @@ preprocessing:
     
   # Audio quality validation
   quality_check:
-    min_duration: 1.0    # Minimum clip duration in seconds
-    max_duration: 30.0   # Maximum clip duration in seconds
-    snr_threshold: 15    # Minimum SNR in dB
+    min_duration: 1.0      # Minimum clip duration in seconds
+    max_duration: 1500.0   # Increased for testing with Pokemon episodes
+    snr_threshold: 5       # Lowered threshold for testing
     
 # Output settings
 output:

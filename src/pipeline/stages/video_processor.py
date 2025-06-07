@@ -10,7 +10,7 @@ from typing import Dict, Any, List
 import subprocess
 import json
 
-from ...utils.file_utils import get_video_files, clean_filename
+from utils.file_utils import get_video_files, clean_filename
 
 
 logger = logging.getLogger(__name__)

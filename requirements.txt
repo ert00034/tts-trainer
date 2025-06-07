@@ -1,6 +1,10 @@
+# CUDA-enabled PyTorch (install with: pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu128)
+# For CUDA 12.8/12.9 compatibility - use cu128 builds
+torch==2.7.0+cu128
+torchaudio==2.7.0+cu128  
+torchvision==0.22.0+cu128
+
 # Core Dependencies
-torch>=2.0.0
-torchaudio>=2.0.0
 numpy>=1.21.0
 scipy>=1.7.0
 librosa>=0.9.2
@@ -8,19 +12,19 @@ soundfile>=0.12.1
 PyYAML>=6.0
 
 # TTS Models
-TTS>=0.22.0  # Coqui TTS for XTTS v2 and VITS
-tortoise-tts>=2.8.0
+coqui-tts>=0.26.0  # New maintained fork of Coqui TTS for XTTS v2 and VITS (supports Python 3.12)
+# tortoise-tts>=2.8.0  # May have Python 3.12 compatibility issues, commented out for now
 
 # Speech Recognition
 faster-whisper>=0.10.0
 openai-whisper>=20231117
-pyannote.audio>=3.1.0  # Speaker diarization
+pyannote.audio>=3.1.0  # Speaker diarization - now required for speaker segmentation
 
 # Audio Processing
 ffmpeg-python>=0.2.0
 pydub>=0.25.1
 noisereduce>=3.0.0
-rnnoise-python>=1.0.0  # For denoising
+# rnnoise-python>=1.0.0  # For denoising - Not compatible with Python 3.12, commented out
 
 # Discord Integration
 discord.py>=2.3.0
@@ -42,7 +46,7 @@ click>=8.1.0
 tqdm>=4.65.0
 colorlog>=6.7.0
 python-dotenv>=1.0.0
-pathlib2>=2.3.7
+# pathlib2>=2.3.7  # Not needed in Python 3.12 (pathlib is built-in)
 
 # Development & Testing
 pytest>=7.4.0

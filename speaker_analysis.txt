@@ -1,0 +1,30 @@
+{
+  "success": true,
+  "speakers_found": 2,
+  "speaker_analysis": {
+    "SPEAKER_00": {
+      "total_segments": 3,
+      "total_duration": 10.519999999999996,
+      "sample_texts": [
+        "I",
+        "Want to be the very best no one ever was",
+        "To catch them is my real test to train them is my car"
+      ],
+      "episodes": [
+        "Pokemon S01E43 March of the Exeggutor Squad"
+      ]
+    },
+    "SPEAKER_01": {
+      "total_segments": 3,
+      "total_duration": 6.359999999999992,
+      "sample_texts": [
+        "I'll travel across",
+        "Searching far and wide",
+        "He's talking mine to understand"
+      ],
+      "episodes": [
+        "Pokemon S01E43 March of the Exeggutor Squad"
+      ]
+    }
+  }
+}
