@@ -278,3 +278,6 @@ mlruns/
 
 # Local archives
 archives/
+resources/segments_processed/
+resources/validation_samples/
+speaker_analysis_full.json

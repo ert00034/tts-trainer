@@ -19,6 +19,7 @@ coqui-tts>=0.26.0  # New maintained fork of Coqui TTS for XTTS v2 and VITS (supp
 faster-whisper>=0.10.0
 openai-whisper>=20231117
 pyannote.audio>=3.1.0  # Speaker diarization - now required for speaker segmentation
+speechbrain>=0.5.16    # Voice embeddings for speaker clustering
 
 # Audio Processing
 ffmpeg-python>=0.2.0

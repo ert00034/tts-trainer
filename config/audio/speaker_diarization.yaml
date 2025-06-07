@@ -17,7 +17,7 @@ clustering:
   
   # Clustering threshold - LOWER values = more speakers detected
   # Default is often 0.7, reducing to 0.4-0.5 for more sensitive detection
-  threshold: 0.6
+  threshold: 0.75
   
   # Method for clustering: "centroid", "complete", "average"
   method: "centroid"

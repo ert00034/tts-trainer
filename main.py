@@ -9,6 +9,9 @@ import asyncio
 import sys
 from pathlib import Path
 from typing import Optional
+import click
+import json
+import shutil
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -91,6 +94,19 @@ Examples:
     analyze_parser.add_argument("--transcripts", required=True, help="Directory containing transcription results")
     analyze_parser.add_argument("--output", help="Output file for analysis report")
     
+    # Process Segments Command
+    process_segments_parser = subparsers.add_parser("process-segments", help="Improve quality of audio segments for TTS training")
+    process_segments_parser.add_argument("--input", required=True, help="Input directory containing speaker segments")
+    process_segments_parser.add_argument("--output", default="resources/segments_processed/", help="Output directory for processed segments")
+    process_segments_parser.add_argument("--config", help="Path to segment processing config file")
+    
+    # Voice Clustering Command
+    clustering_parser = subparsers.add_parser("cluster-voices", help="Group similar voices across episodes for consistent speaker IDs")
+    clustering_parser.add_argument("--segments", required=True, help="Input directory containing speaker segments")
+    clustering_parser.add_argument("--output", default="resources/voice_clusters/", help="Output directory for clustering results")
+    clustering_parser.add_argument("--config", help="Path to voice clustering config file")
+    clustering_parser.add_argument("--apply", help="Apply existing clustering results to reorganize segments by character")
+    
     # Train Command
     train_parser = subparsers.add_parser("train", help="Train a TTS model")
     train_parser.add_argument("--model", required=True, choices=["xtts_v2", "vits", "tortoise"],
@@ -120,6 +136,16 @@ Examples:
     validate_parser.add_argument("--input", required=True, help="Input directory to validate")
     validate_parser.add_argument("--type", choices=["audio", "dataset", "transcripts"], 
                                  default="audio", help="Type of validation to perform")
+    
+    # Create Validation Samples Command
+    validation_samples_parser = subparsers.add_parser("create-validation-samples", 
+                                                       help="Create validation samples for manual review of clustering quality")
+    validation_samples_parser.add_argument("--clustering-results", required=True, 
+                                          help="Path to voice clustering results JSON file")
+    validation_samples_parser.add_argument("--output", required=True, 
+                                          help="Output directory for validation samples")
+    validation_samples_parser.add_argument("--samples-per-cluster", type=int, default=3, 
+                                          help="Number of samples per cluster to copy")
     
     return parser
 
@@ -370,7 +396,6 @@ async def analyze_speakers(args):
         
         # Save detailed report if output specified
         if args.output:
-            import json
             with open(args.output, 'w', encoding='utf-8') as f:
                 json.dump(result, f, indent=2, ensure_ascii=False)
             print(f"\n📄 Detailed report saved to: {args.output}")
@@ -379,6 +404,104 @@ async def analyze_speakers(args):
     else:
         print(f"❌ Speaker analysis failed: {result.get('error', 'Unknown error')}")
         return 1
+    
+    return 0
+
+
+async def process_segments(args):
+    """Process audio segments to improve quality for TTS training."""
+    print(f"🔧 Processing audio segments: {args.input} → {args.output}")
+    
+    from pipeline.stages.audio_segment_processor import AudioSegmentProcessor
+    
+    processor = AudioSegmentProcessor(args.config) if args.config else AudioSegmentProcessor()
+    result = await processor.process_segments(args.input, args.output)
+    
+    if result['success']:
+        print(f"✅ Processing completed!")
+        print(f"   📊 Speakers processed: {result['speakers_processed']}")
+        print(f"   🎯 Segments accepted: {result['segments_accepted']}/{result['segments_input']}")
+        print(f"   📉 Rejection rate: {result['rejection_rate']:.1%}")
+        print(f"   ⏱️ Total duration: {result['total_duration_hours']:.1f} hours")
+        
+        if result.get('speakers_failed', 0) > 0:
+            print(f"   ⚠️ Failed speakers: {result['speakers_failed']}")
+        
+        # Show common rejection reasons
+        if result['rejection_rate'] > 0.1:  # If >10% rejected
+            print(f"\n💡 Consider adjusting quality thresholds based on your data")
+    else:
+        print(f"❌ Segment processing failed: {result.get('error', 'Unknown error')}")
+        return 1
+    
+    return 0
+
+
+async def cluster_voices(args):
+    """Perform cross-episode voice clustering or apply existing clustering results."""
+    from pipeline.stages.voice_clustering import VoiceClusteringSystem
+    
+    if args.apply:
+        # Apply existing clustering results to reorganize segments
+        print(f"🔄 Applying clustering results: {args.apply}")
+        print(f"📁 Reorganizing segments: {args.segments} → {args.output}")
+        
+        clustering_system = VoiceClusteringSystem()
+        result = await clustering_system.apply_clustering_to_segments(
+            clustering_results_path=args.apply,
+            segments_dir=args.segments,
+            output_dir=args.output
+        )
+        
+        if result['success']:
+            print(f"✅ Segments reorganized successfully!")
+            print(f"📊 Statistics:")
+            print(f"   Segments reorganized: {result['segments_reorganized']}")
+            print(f"   Characters created: {result['characters_created']}")
+            print(f"   Failed segments: {result['segments_failed']}")
+            print(f"📁 Character segments saved to: {result['output_path']}")
+        else:
+            print(f"❌ Failed to apply clustering: {result.get('error', 'Unknown error')}")
+            return 1
+    else:
+        # Perform new voice clustering analysis
+        print(f"🎯 Analyzing voices for clustering: {args.segments}")
+        print(f"📁 Clustering results will be saved to: {args.output}")
+        
+        # Load config if provided
+        config = None
+        if args.config:
+            import yaml
+            with open(args.config, 'r') as f:
+                config = yaml.safe_load(f)
+        
+        clustering_system = VoiceClusteringSystem(config)
+        result = await clustering_system.cluster_voices(args.segments, args.output)
+        
+        if result['success']:
+            print(f"✅ Voice clustering completed successfully!")
+            print(f"📊 Clustering Results:")
+            print(f"   Total voice embeddings: {result['total_embeddings']}")
+            print(f"   Clusters found: {result['clusters_found']}")
+            print(f"📁 Results saved to: {result['output_path']}")
+            
+            # Show cluster assignments
+            if 'cluster_assignments' in result:
+                print(f"🎭 Character Assignments:")
+                for cluster_id, character in result['cluster_assignments'].items():
+                    print(f"   Cluster {cluster_id} → {character}")
+            
+            # Show recommendations if available
+            if 'recommendations' in result:
+                print(f"💡 Recommendations:")
+                for rec in result['recommendations'][:3]:  # Show first 3
+                    print(f"   • {rec}")
+            
+            print(f"\n🔄 To apply these results, run:")
+            print(f"   python main.py cluster-voices --segments {args.segments} --apply {args.output}/voice_clustering_results.json --output resources/characters/")
+        else:
+            print(f"❌ Voice clustering failed: {result.get('error', 'Unknown error')}")
+            return 1
     
     return 0
 
@@ -489,6 +612,72 @@ async def validate_data(args):
     return 0 if result.overall_score >= 7.0 else 1
 
 
+async def create_validation_samples(args):
+    """Create validation samples for manual review of clustering quality."""
+    # Load clustering results
+    with open(args.clustering_results, 'r') as f:
+        data = json.load(f)
+    
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Clear existing validation samples
+    for item in output_dir.iterdir():
+        if item.is_dir():
+            shutil.rmtree(item)
+        else:
+            item.unlink()
+    
+    print(f"🎧 Creating validation samples in: {output_dir}")
+    
+    # Process each cluster
+    for cluster in data['clusters']:
+        cluster_id = cluster['cluster_id']
+        character = cluster.get('assigned_character', f'cluster_{cluster_id}')
+        duration = cluster['total_duration'] / 60
+        episodes = len(cluster['episodes'])
+        
+        # Create character directory
+        char_dir = output_dir / f"{cluster_id:02d}_{character}"
+        char_dir.mkdir(exist_ok=True)
+        
+        # Copy representative samples
+        samples = cluster.get('representative_samples', [])[:args.samples_per_cluster]
+        
+        print(f"📁 {character}: {duration:.1f}min, {episodes} episodes, copying {len(samples)} samples")
+        
+        for i, sample_path in enumerate(samples):
+            if Path(sample_path).exists():
+                # Create descriptive filename
+                original_name = Path(sample_path).name
+                new_name = f"{i+1:02d}_{original_name}"
+                dest_path = char_dir / new_name
+                
+                try:
+                    shutil.copy2(sample_path, dest_path)
+                except Exception as e:
+                    print(f"  ⚠️  Failed to copy {sample_path}: {e}")
+            else:
+                print(f"  ⚠️  Sample not found: {sample_path}")
+        
+        # Create a summary file for this cluster
+        summary_file = char_dir / "cluster_info.txt"
+        with open(summary_file, 'w') as f:
+            f.write(f"Cluster ID: {cluster_id}\n")
+            f.write(f"Character: {character}\n")
+            f.write(f"Duration: {duration:.1f} minutes\n")
+            f.write(f"Episodes: {episodes}\n")
+            f.write(f"Segments: {cluster['segment_count']}\n")
+            f.write(f"Quality Score: {cluster.get('quality_score', 'N/A')}\n")
+            f.write(f"\nFirst few episodes:\n")
+            for ep in cluster['episodes'][:5]:
+                f.write(f"  - {ep}\n")
+    
+    print(f"\n✅ Validation samples created in: {output_dir}")
+    print("📝 Each cluster has a 'cluster_info.txt' file with details")
+    print("🎵 Audio files are numbered for easy sequential listening")
+
+
 async def main():
     """Main entry point."""
     parser = setup_parser()
@@ -509,10 +698,13 @@ async def main():
         "transcribe": transcribe_audio,
         "segment-speakers": segment_speakers,
         "analyze-speakers": analyze_speakers,
+        "process-segments": process_segments,
+        "cluster-voices": cluster_voices,
         "train": train_model,
         "inference": run_inference,
         "discord-bot": launch_discord_bot,
         "validate": validate_data,
+        "create-validation-samples": create_validation_samples,
     }
     
     handler = handlers.get(args.command)

@@ -1,0 +1,110 @@
+# Voice Clustering Configuration
+# Optimized for Pokemon anime character voice separation
+
+embedding:
+  # Voice embedding model for speaker verification
+  model: "speechbrain/spkrec-ecapa-voxceleb"  # Pre-trained speaker embedding model
+  # consider using model: "microsoft/wavlm-base-plus-sv"  # WavLM model, better for speaker verification
+
+  device: "cuda"  # Use GPU if available, fallback to CPU
+  normalize: true  # Normalize embeddings for better clustering
+  max_audio_length: 10.0  # Maximum seconds per segment for embedding extraction
+  min_audio_length: 1.0   # Minimum seconds per segment (filter very short clips)
+
+clustering:
+  # Clustering algorithm and parameters
+  algorithm: "dbscan"  # Back to DBSCAN with tuned parameters
+  
+  # DBSCAN parameters - CAREFULLY TUNED
+  eps: 0.45             # Sweet spot between 0.4 (over-cluster) and 0.6 (under-cluster)
+  min_samples: 4        # Slightly higher to ensure cluster stability
+  distance_metric: "cosine"  # Distance metric for voice embeddings
+  
+  # Hierarchical clustering parameters - BACKUP
+  n_clusters: 12        # Fixed number for Pokemon main characters + some minor ones
+  linkage: "ward"       # Linkage method for hierarchical clustering
+
+quality:
+  # Quality filters for meaningful clusters - STRICTER
+  min_cluster_duration: 30.0    # Increased to filter noise clusters
+  min_episodes_per_cluster: 2   # Require multi-episode presence
+  min_segments_per_cluster: 10  # Require sufficient segments
+  purity_threshold: 0.7         # Higher purity requirement
+
+character_assignment:
+  # Character assignment and validation
+  use_text_analysis: true       # Use transcript text for character hints
+  min_confidence: 0.6           # Minimum confidence for auto-assignment
+  
+  # Expected Pokemon characters (in order of likely appearance frequency)
+  pokemon_characters:
+    - "ash"           # Main protagonist (most dialogue)
+    - "narrator"      # Episode narration and announcements
+    - "misty"         # Main character (frequent episodes)
+    - "brock"         # Main character (frequent episodes)
+    - "jessie"        # Team Rocket (frequent recurring)
+    - "james"         # Team Rocket (frequent recurring)
+    - "meowth"        # Team Rocket (frequent recurring)
+    - "pokédex"       # Pokédex voice/entries
+    - "professor_oak" # Recurring character
+    - "announcer"     # Contest/battle announcements
+
+text_analysis:
+  # Text-based character hints (optional enhancement)
+  enabled: true
+  
+  # Character-specific phrases and patterns
+  character_hints:
+    ash:
+      - "gotta catch"
+      - "pikachu"
+      - "pokemon master"
+      - "i choose you"
+    
+    narrator:
+      - "our heroes"
+      - "meanwhile"
+      - "to be continued"
+      - "pokemon trainer"
+    
+    jessie:
+      - "prepare for trouble"
+      - "team rocket"
+      - "beauty"
+    
+    james:
+      - "make it double"
+      - "team rocket"
+      - "wobbuffet"
+    
+    meowth:
+      - "that's right"
+      - "team rocket"
+      - "da boss"
+      - "meowth"
+    
+    pokédex:
+      - "pokemon"
+      - "psychic type"
+      - "abilities include"
+      - "known for"
+
+processing:
+  # Processing optimization
+  parallel_workers: 3          # Number of parallel workers for embedding extraction
+  batch_size: 16              # Batch size for embedding model inference
+  cache_embeddings: true      # Cache embeddings for faster re-runs
+  memory_limit_gb: 4          # Memory limit for processing (prevent OOM)
+
+output:
+  # Output configuration
+  save_embeddings: true       # Save voice embeddings for analysis
+  save_cluster_samples: true  # Save representative audio samples per cluster
+  generate_report: true       # Generate detailed clustering report
+  create_character_dirs: true # Create character-specific directories
+
+validation:
+  # Validation and quality checks
+  cross_validate: true        # Perform cross-validation on clusters
+  silhouette_analysis: true   # Compute silhouette scores for cluster quality
+  manual_review_threshold: 0.5 # Flag clusters below this confidence for manual review 
