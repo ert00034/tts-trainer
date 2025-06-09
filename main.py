@@ -16,10 +16,10 @@ import shutil
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from pipeline.orchestrator import PipelineOrchestrator
-from models.base_trainer import ModelRegistry
-from utils.logging_utils import setup_logging
-from utils.file_utils import validate_input_path, create_output_dir
+from src.pipeline.orchestrator import PipelineOrchestrator
+from src.models.base_trainer import ModelRegistry
+from src.utils.logging_utils import setup_logging
+from src.utils.file_utils import validate_input_path, create_output_dir
 
 
 def setup_parser() -> argparse.ArgumentParser:
@@ -122,6 +122,7 @@ Examples:
     inference_parser.add_argument("--model", required=True, help="Path to trained model or model name")
     inference_parser.add_argument("--text", required=True, help="Text to synthesize")
     inference_parser.add_argument("--reference", help="Path to reference audio file for voice cloning")
+    inference_parser.add_argument("--character", help="Character name for voice cloning (when using character profiles)")
     inference_parser.add_argument("--output", default="inference_output.wav", help="Output audio file")
     inference_parser.add_argument("--streaming", action="store_true", help="Enable streaming inference")
     
@@ -180,7 +181,7 @@ async def extract_audio(args):
     """Extract audio from video files."""
     print(f"🎵 Extracting audio: {args.input} → {args.output}")
     
-    from pipeline.stages.audio_extractor import AudioExtractor
+    from src.pipeline.stages.audio_extractor import AudioExtractor
     
     extractor = AudioExtractor(output_format=args.format)
     result = await extractor.extract_from_directory(args.input, args.output)
@@ -204,8 +205,8 @@ async def preprocess_audio(args):
     """Preprocess audio files for TTS training."""
     print(f"🔧 Preprocessing audio: {args.input} → {args.output}")
     
-    from pipeline.stages.audio_preprocessor import AudioPreprocessor
-    from pipeline.validators.audio_quality import AudioQualityValidator
+    from src.pipeline.stages.audio_preprocessor import AudioPreprocessor
+    from src.pipeline.validators.audio_quality import AudioQualityValidator
     
     if args.validate_only:
         # Only validate audio quality
@@ -262,7 +263,7 @@ async def transcribe_audio(args):
     """Generate transcripts from audio files."""
     print(f"📝 Transcribing audio: {args.input} → {args.output}")
     
-    from pipeline.stages.transcriber import Transcriber
+    from src.pipeline.stages.transcriber import Transcriber
     
     transcriber = Transcriber(
         model_size=args.model,
@@ -299,7 +300,7 @@ async def segment_speakers(args):
     """Extract character-specific audio clips from transcribed episodes."""
     print(f"✂️ Segmenting speakers: {args.audio} + {args.transcripts} → {args.output}")
     
-    from pipeline.stages.speaker_segmenter import SpeakerSegmenter
+    from src.pipeline.stages.speaker_segmenter import SpeakerSegmenter
     
     segmenter = SpeakerSegmenter(args.config) if args.config else SpeakerSegmenter()
     
@@ -362,7 +363,7 @@ async def analyze_speakers(args):
     """Analyze speaker patterns in transcripts."""
     print(f"🔍 Analyzing speakers in: {args.transcripts}")
     
-    from pipeline.stages.speaker_segmenter import SpeakerSegmenter
+    from src.pipeline.stages.speaker_segmenter import SpeakerSegmenter
     
     segmenter = SpeakerSegmenter()
     result = await segmenter.analyze_speakers(args.transcripts)
@@ -412,7 +413,7 @@ async def process_segments(args):
     """Process audio segments to improve quality for TTS training."""
     print(f"🔧 Processing audio segments: {args.input} → {args.output}")
     
-    from pipeline.stages.audio_segment_processor import AudioSegmentProcessor
+    from src.pipeline.stages.audio_segment_processor import AudioSegmentProcessor
     
     processor = AudioSegmentProcessor(args.config) if args.config else AudioSegmentProcessor()
     result = await processor.process_segments(args.input, args.output)
@@ -439,7 +440,7 @@ async def process_segments(args):
 
 async def cluster_voices(args):
     """Perform cross-episode voice clustering or apply existing clustering results."""
-    from pipeline.stages.voice_clustering import VoiceClusteringSystem
+    from src.pipeline.stages.voice_clustering import VoiceClusteringSystem
     
     if args.apply:
         # Apply existing clustering results to reorganize segments
@@ -507,55 +508,113 @@ async def cluster_voices(args):
 
 
 async def train_model(args):
-    """Train a TTS model."""
+    """Train/Setup a TTS model with character voice profiles."""
     print(f"🏋️ Training {args.model} model with dataset: {args.dataset}")
     
-    model_trainer = ModelRegistry.get_trainer(args.model)
-    
-    # Load config and override with CLI args if provided
-    config = model_trainer.load_config(args.config)
-    if args.epochs:
-        config.training.epochs = args.epochs
-    if args.batch_size:
-        config.training.batch_size = args.batch_size
-    
-    result = await model_trainer.train(
-        dataset_path=args.dataset,
-        output_path=args.output,
-        config=config,
-        resume_from=args.resume
-    )
-    
-    if result.success:
-        print(f"✅ Training completed!")
-        print(f"📁 Model saved to: {result.model_path}")
-        print(f"📊 Final metrics: {result.final_metrics}")
-    else:
-        print(f"❌ Training failed: {result.error}")
+    try:
+        from src.models.base_trainer import ModelRegistry
+        
+        model_trainer = ModelRegistry.get_trainer(args.model)
+        
+        # Load config and override with CLI args if provided
+        config = model_trainer.load_config(args.config)
+        if hasattr(config, 'training') and args.epochs:
+            config['training']['epochs'] = args.epochs
+        if hasattr(config, 'training') and args.batch_size:
+            config['training']['batch_size'] = args.batch_size
+        
+        # For XTTS v2, this creates character voice profiles
+        result = await model_trainer.train(
+            dataset_path=args.dataset,
+            output_path=args.output,
+            config=config,
+            resume_from=args.resume
+        )
+        
+        if result.success:
+            print(f"✅ Training completed!")
+            print(f"📁 Model saved to: {result.model_path}")
+            print(f"📊 Final metrics: {result.final_metrics}")
+            
+            # Show character-specific results
+            character_metrics = result.final_metrics.get('character_metrics', {})
+            if character_metrics:
+                print(f"\n🎭 Character Voice Profiles Created:")
+                for character, metrics in character_metrics.items():
+                    speed = metrics.get('synthesis_speed', 0)
+                    print(f"   {character}: ⏱️ {speed:.2f}s synthesis test")
+                
+                print(f"\n💡 Test voices with:")
+                for character in character_metrics.keys():
+                    print(f"   python main.py inference --model {args.output}/character_voice_profiles.json --character {character} --text \"Hello, I'm {character}\"")
+        else:
+            error_msg = getattr(result, 'error', 'Unknown error')
+            print(f"❌ Training failed: {error_msg}")
+            return 1
+        
+    except Exception as e:
+        print(f"❌ Training failed with exception: {e}")
         return 1
     
     return 0
 
 
 async def run_inference(args):
-    """Test model inference."""
+    """Test model inference with character voice cloning."""
     print(f"🎤 Running inference with model: {args.model}")
     
-    model_type = ModelRegistry.detect_model_type(args.model)
-    model = ModelRegistry.load_model(model_type, args.model)
+    from src.models.base_trainer import ModelRegistry
     
-    result = await model.synthesize(
-        text=args.text,
-        reference_audio=args.reference,
-        output_path=args.output,
-        streaming=args.streaming
-    )
-    
-    if result.success:
-        print(f"✅ Audio generated: {args.output}")
-        print(f"⏱️ Generation time: {result.generation_time:.2f}s")
-    else:
-        print(f"❌ Inference failed: {result.error}")
+    try:
+        model_type = ModelRegistry.detect_model_type(args.model)
+        model = ModelRegistry.load_model(model_type, args.model)
+        
+        # Load character voice profiles if available
+        if hasattr(model, 'load_character_voices') and args.model.endswith('character_voice_profiles.json'):
+            model.load_character_voices(args.model)
+            available_characters = model.list_available_characters()
+            
+            if args.character and args.character not in available_characters:
+                print(f"❌ Character '{args.character}' not found. Available: {available_characters}")
+                return 1
+            elif not args.character and not args.reference:
+                print(f"Available characters: {available_characters}")
+                print(f"Use --character <name> or --reference <audio_file>")
+                return 1
+        
+        # Display inference info
+        if args.character:
+            print(f"🎭 Using character voice: {args.character}")
+        elif args.reference:
+            print(f"🎵 Using reference audio: {args.reference}")
+        
+        result = await model.synthesize(
+            text=args.text,
+            reference_audio=args.reference,
+            character=args.character,
+            output_path=args.output,
+            streaming=args.streaming
+        )
+        
+        if result.success:
+            print(f"✅ Audio generated: {args.output}")
+            print(f"⏱️ Generation time: {result.generation_time:.2f}s")
+            
+            # Provide playback suggestion
+            import platform
+            if platform.system() == "Windows":
+                print(f"🔊 Play with: start {args.output}")
+            elif platform.system() == "Darwin":  # macOS
+                print(f"🔊 Play with: open {args.output}")
+            else:  # Linux
+                print(f"🔊 Play with: xdg-open {args.output}")
+        else:
+            error_msg = getattr(result, 'error', 'Unknown error')
+            print(f"❌ Inference failed: {error_msg}")
+            return 1
+            
+    except Exception as e:
+        print(f"❌ Inference failed with exception: {e}")
         return 1
     
     return 0
@@ -565,7 +624,7 @@ async def launch_discord_bot(args):
     """Launch the Discord bot."""
     print(f"🤖 Launching Discord bot with {args.model} model")
     
-    from discord_bot.bot import TTSBot
+    from src.discord_bot.bot import TTSBot
     
     bot = TTSBot(
         model_type=args.model,
@@ -588,13 +647,13 @@ async def validate_data(args):
     print(f"🔍 Validating {args.type}: {args.input}")
     
     if args.type == "audio":
-        from pipeline.validators.audio_quality import AudioQualityValidator
+        from src.pipeline.validators.audio_quality import AudioQualityValidator
         validator = AudioQualityValidator()
     elif args.type == "dataset":
-        from pipeline.validators.dataset_validator import DatasetValidator
+        from src.pipeline.validators.dataset_validator import DatasetValidator
         validator = DatasetValidator()
     else:
-        from pipeline.validators.transcript_alignment import TranscriptAlignmentValidator
+        from src.pipeline.validators.transcript_alignment import TranscriptAlignmentValidator
         validator = TranscriptAlignmentValidator()
     
     result = await validator.validate_directory(args.input)

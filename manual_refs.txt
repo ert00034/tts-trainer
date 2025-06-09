@@ -1,0 +1,3 @@
+meowth:resources/validation_samples_v4/meowth/Pokemon S01E17 Island of Giant Pokemon_SPEAKER_15_006.wav 
+meowth:resources\validation_samples_v4\meowth\Pokemon S01E17 Island of Giant Pokemon_SPEAKER_15_007.wav
+meowth:resources\validation_samples_v4\meowth\Pokemon S01E79 Fourth Round Rumble_SPEAKER_20_009.wav

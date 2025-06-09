@@ -54,7 +54,7 @@ class AudioQualityValidator:
         except Exception as e:
             logger.warning(f"Failed to load config from {config_path}: {e}")
             # Return default config
-            return {
+            config = {
                 'preprocessing': {
                     'quality_check': {
                         'min_duration': 1.0,
@@ -66,6 +66,7 @@ class AudioQualityValidator:
                     'sample_rate': 24000
                 }
             }
+            return config
     
     async def validate_directory(self, audio_dir: str) -> ValidationResult:
         """Validate all audio files in directory."""
@@ -152,9 +153,16 @@ class AudioQualityValidator:
             metrics['channels'] = 1 if audio.ndim == 1 else audio.shape[0]
             metrics['file_size'] = file_path.stat().st_size
             
+            # Ensure quality_check config exists
+            quality_config = self.config.get('preprocessing', {}).get('quality_check', {
+                'min_duration': 1.0,
+                'max_duration': 30.0,
+                'snr_threshold': 15
+            })
+            
             # Validate duration
-            min_duration = self.config['preprocessing']['quality_check']['min_duration']
-            max_duration = self.config['preprocessing']['quality_check']['max_duration']
+            min_duration = quality_config.get('min_duration', 1.0)
+            max_duration = quality_config.get('max_duration', 30.0)
             
             if duration < min_duration:
                 issues.append(f"Too short: {duration:.2f}s (min: {min_duration}s)")
@@ -170,7 +178,7 @@ class AudioQualityValidator:
             snr = self._calculate_snr(audio)
             metrics['snr'] = snr
             
-            snr_threshold = self.config['preprocessing']['quality_check']['snr_threshold']
+            snr_threshold = quality_config.get('snr_threshold', 15)
             if snr < snr_threshold:
                 issues.append(f"Low SNR: {snr:.1f}dB (min: {snr_threshold}dB)")
             
@@ -219,29 +227,24 @@ class AudioQualityValidator:
     def _calculate_snr(self, audio: np.ndarray) -> float:
         """Calculate Signal-to-Noise Ratio."""
         try:
-            # Use spectral gating method to estimate noise floor
-            # Split audio into frames and find quietest frames as noise estimate
-            frame_length = 2048
-            hop_length = 1024
+            # Use a more robust SNR calculation for enhanced audio
+            # Calculate percentile-based signal and noise levels
             
-            # Calculate RMS energy for each frame
-            frames = librosa.util.frame(audio, frame_length=frame_length, 
-                                       hop_length=hop_length, axis=0)
-            frame_energy = np.sqrt(np.mean(frames**2, axis=0))
+            # Signal level: 90th percentile of absolute values
+            signal_level = np.percentile(np.abs(audio), 90)
             
-            # Sort frame energies and use bottom 10% as noise estimate
-            sorted_energies = np.sort(frame_energy)
-            noise_floor_idx = max(1, int(len(sorted_energies) * 0.1))
-            noise_energy = np.mean(sorted_energies[:noise_floor_idx])
+            # Noise level: 10th percentile of absolute values  
+            noise_level = np.percentile(np.abs(audio), 10)
             
-            # Signal energy is overall RMS
-            signal_energy = np.sqrt(np.mean(audio**2))
+            # Ensure we don't divide by zero
+            if noise_level <= 0:
+                noise_level = np.finfo(float).eps
             
             # Calculate SNR in dB
-            if noise_energy > 0:
-                snr = 20 * np.log10(signal_energy / noise_energy)
-            else:
-                snr = 60.0  # Assume high SNR if no noise detected
+            snr = 20 * np.log10(signal_level / noise_level)
+            
+            # Clamp to reasonable range for enhanced audio
+            snr = max(0.0, min(60.0, snr))
                 
             return float(snr)
             

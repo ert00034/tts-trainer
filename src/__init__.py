@@ -1,5 +1,5 @@
 """
-TTS Trainer - Pipeline-Orchestrated TTS Training System
+TTS Trainer Source Package
 """
 
 __version__ = "0.1.0"

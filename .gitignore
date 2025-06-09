@@ -250,6 +250,7 @@ artifacts/checkpoints/*
 !artifacts/checkpoints/.gitkeep
 artifacts/metrics/*
 !artifacts/metrics/.gitkeep
+artifacts/character_voices/
 
 # Logs
 logs/
@@ -299,3 +300,15 @@ mlruns/
 archives/
 resources/segments_processed/
 resources/segments_processed_old/
+
+# Experimental and temporary Python files
+manual_character_training*.py
+test_*.py
+run_*.py
+multi_reference_trainer.py
+setup_cuda.py
+
+# Workflow documentation (generated/temporary)
+*.md
+!README.md
+!docs/**/*.md

@@ -1,4 +1,6 @@
-"""Pipeline components for TTS training."""
+"""
+TTS Training Pipeline Package
+"""
 
 from .orchestrator import PipelineOrchestrator, PipelineResult, PipelineConfig
 

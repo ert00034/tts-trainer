@@ -1,0 +1,157 @@
+# Character-Specific TTS Training Configuration
+# For XTTS v2 voice cloning and character voice profile setup
+
+# Dataset Configuration
+dataset:
+  # Character dataset structure
+  base_path: "resources/validation_samples_v4"  # Base directory for character datasets
+  
+  # Character discovery settings
+  min_samples: 5           # Minimum audio samples required per character
+  max_samples: 100         # Maximum samples to use per character for profile creation
+  
+  # Audio quality filtering
+  min_duration: 1.0        # Minimum clip duration in seconds
+  max_duration: 10.0       # Maximum clip duration in seconds
+  min_quality_score: 20.0  # Minimum quality score from validation
+  
+  # Supported characters (auto-discovery if empty)
+  target_characters: []    # Leave empty to auto-discover, or specify: ["ash", "brock", "meowth"]
+  
+  # Skip generic speaker IDs
+  skip_speakers: ["SPEAKER_"]  # Patterns to skip during character discovery
+
+# Voice Profile Creation
+voice_profiles:
+  # Reference audio selection strategy
+  selection_strategy: "quality_based"  # Options: "quality_based", "random", "duration_based"
+  
+  # Number of reference samples to consider per character
+  reference_samples: 3     # Will select best N samples for voice profiling
+  
+  # Quality thresholds for reference audio
+  min_reference_duration: 2.0    # Minimum duration for reference audio
+  max_reference_duration: 8.0    # Maximum duration for reference audio
+  min_snr: 10.0                  # Minimum Signal-to-Noise Ratio
+  
+  # Test synthesis settings
+  test_phrases: [
+    "Hello, this is a test of my voice.",
+    "The quick brown fox jumps over the lazy dog.",
+    "How are you doing today?"
+  ]
+  
+  # Voice validation criteria
+  synthesis_timeout: 30.0        # Maximum time for test synthesis
+  acceptable_synthesis_time: 5.0  # Target synthesis time per phrase
+
+# XTTS v2 Model Configuration
+model:
+  # Model initialization
+  model_name: "tts_models/multilingual/multi-dataset/xtts_v2"
+  device: "cuda"           # auto, cuda, cpu
+  precision: "fp16"        # fp16, fp32
+  
+  # Voice cloning parameters
+  temperature: 0.75        # Sampling temperature (lower = more conservative)
+  repetition_penalty: 5.0  # Penalty for repetitive tokens
+  top_k: 50               # Top-k sampling
+  top_p: 0.85             # Nucleus sampling
+  speed: 1.0              # Speaking speed multiplier
+  
+  # Memory management
+  low_vram_mode: false    # Enable for GPUs with <8GB VRAM
+  use_deepspeed: false    # Enable DeepSpeed optimization
+  
+# Fine-tuning Configuration (Optional)
+fine_tuning:
+  enabled: false          # Enable fine-tuning (experimental)
+  
+  # Training parameters
+  batch_size: 2           # Small batch size for character-specific training
+  learning_rate: 1e-5     # Conservative learning rate
+  epochs: 5               # Few epochs to avoid overfitting
+  warmup_steps: 100       # Warmup steps
+  
+  # Checkpointing
+  save_frequency: 50      # Save checkpoint every N steps
+  max_checkpoints: 3      # Keep only last N checkpoints
+  
+  # Validation
+  validation_split: 0.2   # Percentage for validation
+  validation_frequency: 25 # Validate every N steps
+
+# Output Configuration
+output:
+  # Voice profile output
+  profiles_filename: "character_voice_profiles.json"
+  
+  # Test synthesis outputs
+  test_synthesis_dir: "test_synthesis"
+  test_file_prefix: "test_"
+  
+  # Model artifacts
+  checkpoint_dir: "checkpoints"
+  logs_dir: "training_logs"
+  
+  # Metadata
+  include_metadata: true   # Include training metadata in profiles
+  include_samples: true    # Include sample file paths in profiles
+
+# Quality Assessment
+quality:
+  # Voice profile validation
+  similarity_threshold: 0.7    # Minimum voice similarity for profile acceptance
+  
+  # Audio quality metrics
+  min_mel_spectral_density: 0.5  # Minimum spectral density
+  max_silence_ratio: 0.3         # Maximum silence ratio in audio
+  
+  # Character voice distinctiveness
+  inter_character_similarity: 0.8  # Maximum similarity between different characters
+  
+# Logging and Monitoring
+logging:
+  level: "INFO"           # DEBUG, INFO, WARNING, ERROR
+  log_synthesis_times: true
+  log_quality_metrics: true
+  log_character_statistics: true
+  
+  # Progress tracking
+  show_progress_bars: true
+  update_frequency: 10    # Update progress every N samples
+
+# Advanced Settings
+advanced:
+  # Parallel processing
+  max_workers: 2          # Number of parallel workers for synthesis testing
+  
+  # Caching
+  cache_embeddings: true  # Cache voice embeddings for faster processing
+  cache_dir: "cache/voice_profiles"
+  
+  # Experimental features
+  enable_voice_mixing: false      # Experimental: Mix multiple reference samples
+  enable_prosody_transfer: false  # Experimental: Transfer prosody patterns
+  
+  # Memory optimization
+  clear_cache_frequency: 50       # Clear cache every N operations
+  force_gc_frequency: 100         # Force garbage collection frequency
+
+# Character-Specific Overrides (Optional)
+character_overrides:
+  # Example: Character-specific settings
+  # ash:
+  #   voice_profiles:
+  #     min_reference_duration: 3.0
+  #     reference_samples: 5
+  #   model:
+  #     temperature: 0.7
+  #     speed: 1.1
+  
+  # brock:
+  #   voice_profiles:
+  #     reference_samples: 4
+  #   model:
+  #     temperature: 0.8
+  #     speed: 0.9 

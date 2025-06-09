@@ -73,6 +73,10 @@ memory-profiler>=0.61.0
 # google-cloud-storage>=2.10.0  # Google Cloud
 # azure-storage-blob>=12.19.0  # Azure
 
+# Enhanced Audio Preprocessing for Vocal Fry Removal
+demucs>=4.0.0  # Vocal separation for better denoising
+resemble-enhance>=0.0.1  # Voice enhancement (may need manual install from GitHub)
+
 # Optional: Advanced Audio Processing (uncomment if needed)
 # essentia>=2.1b6.dev1034  # Advanced audio analysis
 # aubio>=0.4.9  # Beat tracking, onset detection

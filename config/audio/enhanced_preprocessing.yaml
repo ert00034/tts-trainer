@@ -1,0 +1,150 @@
+# Enhanced Audio Preprocessing Configuration
+# Specifically designed to address vocal fry, raspy voices, and poor audio quality
+# Based on research from Steinberg Forums and TTS experts
+
+# Input audio settings
+input:
+  sample_rate: 48000  # Input sample rate (videos often 48kHz)
+  format: "wav"       # Preferred input format
+  channels: "mono"    # Convert to mono for TTS
+  bit_depth: 16       # 16-bit PCM
+
+# Enhanced preprocessing pipeline - addresses vocal fry and raspy voices
+preprocessing:
+  # Step 1: Vocal fry detection and removal
+  vocal_fry_removal:
+    enabled: true
+    aggressive: 0.3     # 0.0-1.0, how aggressive to filter vocal fry frequencies
+    frequency_range: [0, 1000]  # Hz range where vocal fry typically appears
+    detection_threshold: 0.3     # Energy variation threshold for detection
+    
+  # Step 2: Advanced denoising using Demucs vocal separation
+  denoise:
+    enabled: true
+    method: "demucs"    # "demucs" (best), "spectral_gating", "rnnoise"
+    fallback_method: "spectral_gating"  # If Demucs fails
+    
+    # Demucs settings
+    demucs:
+      model: "htdemucs"  # htdemucs, htdemucs_ft, mdx_extra
+      device: "cuda"     # cuda, cpu
+      shifts: 1          # Number of random shifts for better separation
+      split: true        # Split stereo to mono processing
+      overlap: 0.25      # Overlap between chunks
+      
+    # Spectral gating fallback
+    spectral:
+      prop_decrease: 0.8  # Proportion of noise to reduce
+      stationary: false   # Whether noise is stationary
+      
+  # Step 3: Voice enhancement using Resemble-Enhance
+  enhance:
+    enabled: true
+    method: "resemble_enhance"  # "resemble_enhance" (best), "spectral_boost"
+    fallback_method: "spectral_boost"  # If Resemble-Enhance fails
+    
+    # Resemble-Enhance settings
+    resemble:
+      nfe: 64            # Number of function evaluations (quality vs speed)
+      solver: "midpoint" # ODE solver: "midpoint", "euler", "rk4"
+      lambd: 0.9         # Enhancement strength (0.0-1.0)
+      tau: 0.5           # Time constant for enhancement
+      device: "cuda"     # cuda, cpu
+      
+    # Spectral boost fallback
+    spectral_boost:
+      speech_freq_range: [300, 3000]  # Hz range to boost for speech clarity
+      boost_db: 2.0      # dB boost for speech frequencies
+      reduce_noise_db: -6.0  # dB reduction for noise frequencies
+      
+  # Step 4: Silence removal
+  trim_silence:
+    enabled: true
+    threshold_db: -40    # dB threshold for silence detection
+    min_silence_len: 500 # Minimum silence length in ms
+    keep_silence: 100    # Keep this much silence in ms
+    frame_length: 2048   # Frame length for analysis
+    hop_length: 512      # Hop length for analysis
+    
+  # Step 5: Volume normalization
+  normalize:
+    enabled: true
+    method: "lufs"       # "lufs" (broadcast standard), "peak", "rms"
+    target_lufs: -23     # EBU R128 standard (-23 LUFS)
+    max_peak: -3.0       # dBFS peak limit
+    prevent_clipping: true
+    
+  # Step 6: Resampling to target rate
+  resample:
+    target_rate: 24000   # Target sample rate for TTS models
+    quality: "high"      # "low", "medium", "high", "kaiser_best"
+    
+# Output settings
+output:
+  sample_rate: 24000   # TTS models typically use 22050 or 24000
+  format: "wav"        # wav, flac
+  bit_depth: 16        # 16 or 24
+  channels: 1          # Mono for TTS training
+  
+# Quality validation settings
+quality_check:
+  min_duration: 1.0      # Minimum clip duration in seconds
+  max_duration: 30.0     # Maximum clip duration
+  snr_threshold: 8        # Minimum SNR after enhancement (lowered due to enhancement)
+  vocal_fry_threshold: 0.2  # Maximum acceptable vocal fry after processing
+  
+# Performance settings
+performance:
+  parallel_jobs: 2       # Reduced due to heavy processing (Demucs + Resemble)
+  use_gpu: true          # Use GPU for Demucs and Resemble-Enhance
+  memory_limit_gb: 8     # Stop processing if memory exceeds this
+  temp_dir: "temp"       # Temporary directory for intermediate files
+  cleanup_temp: true     # Clean up temporary files after processing
+  
+# Advanced settings
+advanced:
+  # Voice activity detection
+  vad:
+    enabled: true
+    aggressive: 2        # 0-3, how aggressive VAD is
+    frame_duration: 30   # Frame duration in ms
+    
+  # Additional EQ for problematic frequencies
+  eq:
+    enabled: false       # Enable only if needed
+    high_pass: 80        # Hz, remove low rumble
+    low_pass: 8000       # Hz, remove high noise
+    notch_filters: []    # List of frequencies to notch out
+    
+  # Spectral gating for final cleanup
+  final_cleanup:
+    enabled: true
+    gentle_denoise: true # Apply gentle final denoising
+    dc_removal: true     # Remove DC offset
+    soft_limiting: true  # Apply soft limiting to prevent clipping
+
+# Dependencies and installation
+dependencies:
+  required:
+    - "demucs"           # pip install demucs
+    - "resemble-enhance" # pip install resemble-enhance
+    - "noisereduce"      # pip install noisereduce
+    - "librosa"          # pip install librosa
+    - "soundfile"        # pip install soundfile
+    - "torch"            # pip install torch
+    - "torchaudio"       # pip install torchaudio
+    
+  installation_notes: |
+    To install the required dependencies for enhanced preprocessing:
+    
+    # Basic dependencies
+    pip install demucs resemble-enhance noisereduce librosa soundfile
+    
+    # PyTorch (choose based on your CUDA version)
+    pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu118
+    
+    # For CPU-only systems:
+    pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+    
+    Note: Enhanced preprocessing requires significant computational resources.
+    GPU acceleration is strongly recommended for reasonable processing times. 
