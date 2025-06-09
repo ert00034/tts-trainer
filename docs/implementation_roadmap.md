@@ -356,7 +356,7 @@ python main.py run-pipeline --input resources/videos/ --output artifacts/models/
 - **Pipeline Orchestration**: ✅ 95% Complete
 - **Model Framework**: ✅ 90% Complete
 - **Model Implementation**: ❌ 5% Complete (placeholders only)
-- **Transcription & Speaker ID**: ❌ 10% Complete (CLI exists, no implementation)
+- **Transcription & Speaker ID**: ❌ 25% Complete (diarization works but speaker clip grouping needs improvement)
 - **Dataset Building**: ❌ 5% Complete (placeholder only)
 - **Model Training**: ❌ 5% Complete (placeholder only)
 - **Analysis Tools**: ❌ 0% Complete
@@ -399,6 +399,10 @@ python main.py run-pipeline --input resources/videos/ --output artifacts/models/
    - Speaker-specific organization
    - Test end-to-end pipeline
 
+7. **Improve speaker clip grouping**
+   - Voice clustering results are inconsistent
+   - Tune parameters or explore new approaches
+
 ### **Success Metrics**
 - ✅ Discord bot `!say` command generates real audio
 - ✅ `python main.py inference` produces actual TTS output
@@ -407,5 +411,5 @@ python main.py run-pipeline --input resources/videos/ --output artifacts/models/
 
 ---
 
-*Last Updated: Latest Analysis*  
-*Status: Infrastructure complete, core TTS and transcription functionality needed for MVP* 
+*Last Updated: Current Analysis*
+*Status: Infrastructure complete, core TTS and transcription functionality needed for MVP. Speaker clip grouping results remain inconsistent.*
