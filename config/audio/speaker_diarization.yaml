@@ -16,28 +16,28 @@ clustering:
   max_speakers: 30
   
   # Clustering threshold - LOWER values = more speakers detected
-  # Default is often 0.7, reducing to 0.4-0.5 for more sensitive detection
-  threshold: 0.75
+  # Reduced from 0.75 to 0.55 for more sensitive detection of anime voices
+  threshold: 0.55
   
   # Method for clustering: "centroid", "complete", "average"
   method: "centroid"
 
 # Voice Activity Detection (VAD) settings
 vad:
-  # Onset/offset detection thresholds
-  min_duration_on: 0.5   # Minimum speech segment duration (seconds)
-  min_duration_off: 0.1  # Minimum silence duration (seconds)
+  # Onset/offset detection thresholds - adjusted for anime content
+  min_duration_on: 0.3   # Reduced from 0.5 for shorter speech segments
+  min_duration_off: 0.05 # Reduced from 0.1 for better boundary detection
   
 # Segmentation settings  
 segmentation:
   # Speech/non-speech segmentation parameters
-  speech_threshold: 0.5    # Confidence threshold for speech detection
-  min_segment_length: 0.5  # Minimum segment length in seconds
+  speech_threshold: 0.4    # Reduced from 0.5 for more inclusive detection
+  min_segment_length: 0.3  # Reduced from 0.5 for shorter segments
   
 # Post-processing
 post_processing:
   # Merge segments from same speaker if gap is smaller than this (seconds)
-  merge_threshold: 1
+  merge_threshold: 0.5   # Reduced from 1.0 for better boundaries
   
   # Remove segments shorter than this (seconds)  
   min_segment_duration: 0.2
@@ -92,5 +92,4 @@ performance:
 preprocessing:
   target_sample_rate: 16000  # Standard for speech processing
 
-# Batch size
-batch_size: 4   # Increase from 1 for better GPU utilization 
+batch_size: 4

@@ -51,11 +51,11 @@ mapping:
   
   # Minimum segment duration for training (seconds)
   min_segment_duration: 2.0
-  max_segment_duration: 15.0
+  max_segment_duration: 20.0
   
-  # Quality thresholds
-  min_confidence: 0.7
-  min_snr: 10.0
+  # Quality thresholds - adjusted for negative confidence values from Whisper
+  min_confidence: -1.0  # Changed from 0.7 to -1.0 since confidence values are negative
+  min_snr: 5.0  # Lowered from 10.0 to 5.0 to be less restrictive
   
   # Speaker consistency validation
   validate_consistency: true

@@ -1,0 +1,102 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Data Regeneration and Cleanup Workflow
+
+## Always Clean Before Regenerating
+
+When working with the TTS trainer project, **ALWAYS** provide cleanup commands before regenerating data or output files. This ensures:
+- No conflicting old data
+- Clean state for new algorithms/parameters
+- Consistent reproducible results
+- No file conflicts or mixed results
+
+## Required Cleanup Commands
+
+### Voice Clustering Results
+```bash
+# Always run before clustering
+rm -rf resources/voice_clusters/*
+```
+
+### Audio Processing Pipeline
+```bash
+# Clean extracted audio
+rm -rf resources/audio/*
+
+# Clean transcripts
+rm -rf resources/transcripts/*
+
+# Clean speaker segments
+rm -rf resources/segments/*
+
+# Clean validation samples
+rm -rf resources/validation_samples_v3/*
+```
+
+### Training Artifacts
+```bash
+# Clean model outputs
+rm -rf artifacts/models/*
+
+# Clean checkpoints
+rm -rf artifacts/checkpoints/*
+
+# Clean metrics
+rm -rf artifacts/metrics/*
+```
+
+### Logs and Cache
+```bash
+# Clean logs
+rm -rf logs/*
+
+# Clean any cache files
+find . -name "*.cache" -delete
+find . -name "__pycache__" -type d -exec rm -rf {} +
+```
+
+## When to Clean
+
+### ALWAYS Clean:
+- Before running updated clustering algorithms
+- Before reprocessing with new configurations
+- Before running full pipeline after parameter changes
+- Before training with modified datasets
+
+### Selective Cleaning:
+- [main.py](mdc:main.py) `extract-audio`: Clean `resources/audio/*`
+- [main.py](mdc:main.py) `transcribe`: Clean `resources/transcripts/*`
+- [main.py](mdc:main.py) `segment-speakers`: Clean `resources/segments/*`
+- [main.py](mdc:main.py) `cluster-voices`: Clean `resources/voice_clusters/*`
+- [main.py](mdc:main.py) `create-validation-samples`: Clean target output directory
+
+## Command Format
+
+Always provide commands in this format for WSL:
+
+```bash
+# Copy and run this in your WSL terminal to clean [description]:
+cd ~/code/tts-trainer
+[cleanup commands]
+```
+
+## Project-Specific Paths
+
+Key directories that need cleaning in [tts-trainer](mdc:) project:
+- [resources/audio/](mdc:resources/audio) - Extracted episode audio
+- [resources/transcripts/](mdc:resources/transcripts) - Speaker-diarized transcripts  
+- [resources/segments/](mdc:resources/segments) - Individual speaker segments
+- [resources/voice_clusters/](mdc:resources/voice_clusters) - Clustering results
+- [resources/validation_samples_v3/](mdc:resources/validation_samples_v3) - Character datasets
+- [artifacts/](mdc:artifacts) - Training outputs and models
+- [logs/](mdc:logs) - System logs
+
+## Integration with Memory
+
+According to memory: "When providing terminal commands, always format them for copying into a WSL terminal and never prompt the user to run commands directly in the chat."
+
+This cleanup workflow follows that pattern and ensures clean regeneration of data.
+

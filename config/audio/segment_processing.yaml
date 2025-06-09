@@ -1,0 +1,104 @@
+# Audio Segment Processing Configuration
+# Optimized for Pokemon anime voice training with balanced quality/quantity
+
+quality_thresholds:
+  # Duration settings - relaxed for anime content
+  min_duration: 1.5          # Reduced from 2.0 for shorter anime dialogue
+  max_duration: 20.0         # Increased from 15.0 for longer sentences
+  
+  # Audio quality - balanced settings
+  min_snr_db: 10.0          # Reduced from 12.0 for more segments
+  min_speech_ratio: 0.4      # Reduced from 0.5 for anime voice patterns
+  
+  # Text requirements - relaxed for character voices
+  min_word_count: 2          # Reduced from 3 for exclamations/short phrases
+  min_quality_score: 0.4     # Reduced from 0.5 for more inclusive processing
+  
+  # Character voice specific adjustments
+  allow_exclamations: true   # Accept "Pika pika!" type segments
+  allow_short_phrases: true  # Accept brief character catchphrases
+
+boundary_extension:
+  # Padding for better audio boundaries
+  padding_seconds: 0.3       # Increased from 0.2 for better context
+  max_extension: 1.5         # Increased from 1.0 for natural speech boundaries
+  
+  # Smart boundary detection
+  detect_natural_pauses: true
+  extend_to_silence: true
+
+audio_processing:
+  # Output format optimized for TTS training
+  target_sample_rate: 24000
+  normalize_volume: true
+  
+  # Noise reduction
+  apply_noise_reduction: true
+  noise_reduce_strength: 0.3
+  
+  # Fade settings to prevent clicks
+  fade_in_ms: 75            # Increased from 50 for smoother transitions
+  fade_out_ms: 75
+  
+  # EQ adjustments for voice clarity
+  enhance_speech_frequencies: true
+  speech_boost_db: 2.0
+
+# Quality analysis settings
+quality_analysis:
+  # Enhanced SNR calculation
+  use_spectral_snr: true     # More accurate than simple amplitude-based SNR
+  frequency_range: [80, 8000] # Focus on speech frequencies
+  
+  # Speech detection improvements
+  use_vad: true              # Voice Activity Detection for speech ratio
+  vad_aggressiveness: 2      # 0-3, higher = more aggressive silence detection
+  
+  # Energy stability for consistent voices
+  stability_window_ms: 50
+  max_energy_variation: 0.4
+
+# Character-specific processing
+character_profiles:
+  # High-energy characters (Ash, Jessie)
+  energetic:
+    min_snr_db: 9.0          # Slightly lower for energetic speech
+    allow_higher_variation: true
+    
+  # Calm characters (Brock, narrator)
+  calm:
+    min_snr_db: 11.0         # Higher quality expected
+    require_stable_energy: true
+    
+  # Pokemon voices (Pikachu, Meowth)
+  pokemon:
+    min_snr_db: 8.0          # More flexible for synthetic/effect voices
+    min_word_count: 1        # Single "Pika!" is valid
+    allow_repetitive: true    # "Pika pika pika" is acceptable
+
+# Rejection reason analysis
+rejection_analysis:
+  # Track why segments are rejected for optimization
+  save_rejection_stats: true
+  analyze_patterns: true
+  suggest_threshold_adjustments: true
+
+# Parallel processing
+processing:
+  max_workers: 4             # Parallel speaker processing
+  chunk_size: 100            # Segments per chunk
+  memory_limit_gb: 8         # Stop if memory usage exceeds this
+
+# Output organization
+output:
+  # Directory structure
+  organize_by_character: true
+  include_quality_metadata: true
+  
+  # Generate validation samples
+  create_validation_samples: true
+  validation_samples_per_speaker: 5
+  
+  # Quality reports
+  generate_detailed_reports: true
+  save_audio_previews: true   # Save 30s previews for manual review 

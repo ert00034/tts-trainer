@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor
 import pickle
 from collections import defaultdict
+import re
 
 # For voice embeddings and clustering
 try:
@@ -554,34 +555,239 @@ class VoiceClusteringSystem:
         result.quality_metrics = quality_metrics
     
     def _assign_characters(self, result: ClusteringResult):
-        """Assign character names to clusters based on analysis."""
+        """Assign character names to clusters based on dialogue content analysis."""
         assignments = {}
         recommendations = []
         
-        # Sort clusters by duration (most likely to be main characters)
-        sorted_clusters = sorted(result.clusters, key=lambda c: c.total_duration, reverse=True)
+        # Character-specific dialogue patterns for Pokemon
+        character_patterns = {
+            'ash': [
+                r'\bpikachu\b', r'\bgotta catch\b', r'\bi choose you\b', r'\bpok[eé]mon master\b',
+                r'\bmy pokemon\b', r'\btrain\b', r'\bcatch them all\b', r'\bgo pokeball\b',
+                # Additional Ash patterns based on actual dialogue
+                r'\bworld.*best\b', r'\bgonna be\b', r'\bsomeday\b', r'\bpok[eé]ball\b',
+                r'\bbattle\b', r'\bfight\b', r'\btrain.*pok[eé]mon\b', r'\bcome on\b',
+                r'\byou can do it\b', r'\blet.*go\b', r'\bready\b', r'\bawesome\b'
+            ],
+            'misty': [
+                r'\bwater pokemon\b', r'\bstarmie\b', r'\bpsyduck\b', r'\bgoldeen\b', 
+                r'\bbike\b', r'\bmy bike\b', r'\bash ketchum\b', r'\byou better\b',
+                # Additional Misty patterns
+                r'\bwater\b', r'\bswim\b', r'\bpsyduck.*come back\b', r'\bstupid\b',
+                r'\btomboy\b', r'\bfish\b', r'\bocean\b', r'\bpool\b', r'\bbeach\b'
+            ],
+            'brock': [
+                r'\brock pokemon\b', r'\bonix\b', r'\bgeodude\b', r'\bbreeding\b',
+                r'\bcook\b', r'\bfood\b', r'\btake care\b', r'\bzubat\b', r'\bbrock\b',
+                # Additional Brock patterns
+                r'\brock.*type\b', r'\bhard.*rock\b', r'\bstones?\b', r'\bmountain\b',
+                r'\bearth\b', r'\bground\b', r'\bdigging\b', r'\brecipe\b'
+            ],
+            'jessie': [
+                r'\bteam rocket\b', r'\bprepare for trouble\b', r'\barbok\b', 
+                r'\bmake it double\b', r'\bjames\b', r'\bmeowth\b',
+                # Additional Team Rocket patterns
+                r'\btrouble\b', r'\bdouble\b', r'\bdevastating\b', r'\brunite\b',
+                r'\bunite\b', r'\bnation\b', r'\bto protect\b', r'\bto unite\b'
+            ],
+            'james': [
+                r'\bteam rocket\b', r'\bmake it double\b', r'\bekans\b', r'\bweezing\b',
+                r'\bjessie\b', r'\bmeowth\b', r'\bto protect the world\b',
+                # Additional James patterns
+                r'\bdouble\b', r'\bdevastation\b', r'\bunite\b', r'\bnation\b',
+                r'\bto protect\b', r'\bto unite\b', r'\bwhite\b', r'\bjames\b'
+            ],
+            'meowth': [
+                r'\bmeowth\b', r'\bthat.*right\b', r'\bteam rocket\b', r'\bboss\b',
+                r'\bscratch\b', r'\bpay day\b', r'\bfury swipes\b',
+                # Additional Meowth patterns
+                r'\bda boss\b', r'\bdat.*right\b', r'\bmeowth.*name\b', r'\btalk\b',
+                r'\bcat\b', r'\bcoin\b', r'\bmoney\b', r'\brich\b'
+            ],
+            'narrator': [
+                r'\bour hero\b', r'\bmeanwhile\b', r'\bto be continued\b', r'\bpokemon trainer\b',
+                r'\bash and\b', r'\bjourney\b', r'\badventure\b', r'\bquest\b',
+                # Additional narrator patterns
+                r'\bwill.*continue\b', r'\bnext time\b', r'\bstory\b', r'\btale\b',
+                r'\bworld.*pok[eé]mon\b', r'\btrainer.*named\b', r'\byoung.*trainer\b'
+            ],
+            'pokédex': [
+                r'\bpok[eé]dex\b', r'\binformation\b', r'\bdata\b', r'\banalysis\b',
+                r'\bspecie.*pok[eé]mon\b', r'\bheight\b', r'\bweight\b', r'\bevolves?\b',
+                # Additional Pokédex patterns
+                r'\btype.*pok[eé]mon\b', r'\bmeasuring\b', r'\bweighing\b', r'\bentry\b',
+                r'\bregistered\b', r'\bclassified\b', r'\bcategory\b'
+            ]
+        }
         
-        pokemon_chars = self.config['character_assignment']['pokemon_characters']
+        # Exclude theme song and generic patterns
+        theme_song_patterns = [
+            r'\bgotta catch.*all\b', r'\bpokemon.*theme\b', r'\bi want to be\b',
+            r'\bvery best\b', r'\breal test\b', r'\bmy cause\b', r'\bpower.*inside\b'
+        ]
         
-        for i, cluster in enumerate(sorted_clusters):
-            if i < len(pokemon_chars):
-                # Assign to expected character based on cluster ranking
-                suggested_char = pokemon_chars[i]
-                assignments[cluster.cluster_id] = suggested_char
+        # Score each cluster for each character
+        cluster_scores = {}
+        
+        for cluster in result.clusters:
+            # Extract all text from cluster
+            all_text = []
+            dialogue_segments = 0
+            theme_segments = 0
+            
+            for embedding in cluster.embeddings:
+                text = embedding.text.lower()
+                all_text.append(text)
                 
-                # Add recommendation
-                episodes_count = len(cluster.episodes)
-                duration_min = cluster.total_duration / 60
+                # Check if this is theme song vs dialogue
+                is_theme = any(re.search(pattern, text, re.IGNORECASE) for pattern in theme_song_patterns)
+                if is_theme:
+                    theme_segments += 1
+                else:
+                    dialogue_segments += 1
+            
+            combined_text = ' '.join(all_text)
+            
+            # Calculate theme song ratio
+            total_segments = len(cluster.embeddings)
+            theme_ratio = theme_segments / total_segments if total_segments > 0 else 0
+            
+            # Score against each character
+            char_scores = {}
+            for character, patterns in character_patterns.items():
+                score = 0
+                for pattern in patterns:
+                    matches = len(re.findall(pattern, combined_text, re.IGNORECASE))
+                    score += matches
+                
+                # Normalize by cluster size and penalize theme song heavy clusters
+                normalized_score = score / total_segments if total_segments > 0 else 0
+                theme_penalty = max(0, 1 - (theme_ratio * 2))  # Heavy penalty for theme-heavy clusters
+                char_scores[character] = normalized_score * theme_penalty
+            
+            # Detect mixed clusters - multiple characters with significant scores
+            significant_chars = [char for char, score in char_scores.items() if score > 0.03]
+            is_mixed_cluster = len(significant_chars) > 1
+            
+            # Also consider duration and episode spread for main characters
+            duration_factor = min(1.0, cluster.total_duration / 120.0)  # Cap at 2 minutes
+            episode_factor = min(1.0, len(cluster.episodes) / 4.0)  # Want presence across episodes
+            
+            # Apply bonuses for main character indicators
+            for character in ['ash', 'misty', 'brock']:
+                char_scores[character] *= (0.5 + 0.5 * duration_factor * episode_factor)
+            
+            cluster_scores[cluster.cluster_id] = {
+                'char_scores': char_scores,
+                'total_duration': cluster.total_duration,
+                'episodes': len(cluster.episodes),
+                'segments': total_segments,
+                'theme_ratio': theme_ratio,
+                'dialogue_segments': dialogue_segments,
+                'is_mixed': is_mixed_cluster,
+                'significant_chars': significant_chars
+            }
+        
+        # Sort clusters by total dialogue content (not theme songs)
+        dialogue_clusters = [
+            (cluster_id, data) for cluster_id, data in cluster_scores.items()
+            if data['dialogue_segments'] > data['segments'] * 0.5  # At least 50% dialogue
+        ]
+        dialogue_clusters.sort(key=lambda x: x[1]['total_duration'], reverse=True)
+        
+        # Assign characters using content analysis
+        pokemon_chars = self.config['character_assignment']['pokemon_characters']
+        used_characters = set()
+        
+        # First pass: assign high-confidence single-character matches
+        for cluster_id, data in dialogue_clusters:
+            if not data['is_mixed']:  # Only assign single-character clusters first
+                best_char = max(data['char_scores'].items(), key=lambda x: x[1])
+                char_name, score = best_char
+                
+                if score > 0.1 and char_name not in used_characters and char_name in pokemon_chars:
+                    assignments[cluster_id] = char_name
+                    used_characters.add(char_name)
+                    
+                    recommendations.append(
+                        f"Cluster {cluster_id} → {char_name}: "
+                        f"content score {score:.2f}, {data['dialogue_segments']} dialogue segments, "
+                        f"{data['total_duration']/60:.1f}min across {data['episodes']} episodes"
+                    )
+        
+        # Second pass: handle mixed clusters - assign to highest scoring unused character
+        mixed_clusters = [(cluster_id, data) for cluster_id, data in dialogue_clusters if data['is_mixed']]
+        for cluster_id, data in mixed_clusters:
+            # Find best unused character
+            available_scores = {char: score for char, score in data['char_scores'].items() 
+                             if char not in used_characters and char in pokemon_chars}
+            
+            if available_scores:
+                best_char = max(available_scores.items(), key=lambda x: x[1])
+                char_name, score = best_char
+                
+                if score > 0.05:  # Lower threshold for mixed clusters
+                    assignments[cluster_id] = char_name
+                    used_characters.add(char_name)
+                    
+                    recommendations.append(
+                        f"Cluster {cluster_id} → {char_name}: "
+                        f"MIXED CLUSTER (also has {', '.join(data['significant_chars'])}), "
+                        f"content score {score:.2f}, {data['dialogue_segments']} dialogue segments, "
+                        f"{data['total_duration']/60:.1f}min across {data['episodes']} episodes"
+                    )
+        
+        # Third pass: assign remaining main characters by duration
+        remaining_main_chars = [c for c in pokemon_chars if c not in used_characters]
+        unassigned_clusters = [
+            (cluster_id, data) for cluster_id, data in dialogue_clusters
+            if cluster_id not in assignments
+        ]
+        
+        for i, (cluster_id, data) in enumerate(unassigned_clusters):
+            if i < len(remaining_main_chars):
+                char_name = remaining_main_chars[i]
+                assignments[cluster_id] = char_name
+                used_characters.add(char_name)
+                
                 recommendations.append(
-                    f"Cluster {cluster.cluster_id} → {suggested_char}: "
-                    f"{duration_min:.1f}min across {episodes_count} episodes"
+                    f"Cluster {cluster_id} → {char_name}: "
+                    f"fallback assignment, {data['dialogue_segments']} dialogue segments, "
+                    f"{data['total_duration']/60:.1f}min across {data['episodes']} episodes"
                 )
-            else:
-                # Minor character or noise
-                assignments[cluster.cluster_id] = f"minor_character_{cluster.cluster_id}"
-                recommendations.append(
-                    f"Cluster {cluster.cluster_id} → minor character (manual review needed)"
-                )
+        
+        # Fourth pass: assign theme song and minor clusters
+        all_clusters = sorted(result.clusters, key=lambda c: c.total_duration, reverse=True)
+        narrator_assigned = False
+        
+        for cluster in all_clusters:
+            if cluster.cluster_id not in assignments:
+                data = cluster_scores[cluster.cluster_id]
+                
+                if data['theme_ratio'] > 0.7 and not narrator_assigned:
+                    # Likely theme song cluster - only assign first one as narrator
+                    assignments[cluster.cluster_id] = "narrator"
+                    narrator_assigned = True
+                    recommendations.append(
+                        f"Cluster {cluster.cluster_id} → narrator: "
+                        f"theme song cluster ({data['theme_ratio']*100:.0f}% theme), "
+                        f"{data['total_duration']/60:.1f}min"
+                    )
+                else:
+                    # Minor character or additional theme clusters
+                    if data['theme_ratio'] > 0.7:
+                        assignments[cluster.cluster_id] = f"theme_song_{cluster.cluster_id}"
+                        recommendations.append(
+                            f"Cluster {cluster.cluster_id} → theme song: "
+                            f"additional theme cluster ({data['theme_ratio']*100:.0f}% theme), "
+                            f"{data['total_duration']/60:.1f}min"
+                        )
+                    else:
+                        assignments[cluster.cluster_id] = f"minor_character_{cluster.cluster_id}"
+                        recommendations.append(
+                            f"Cluster {cluster.cluster_id} → minor character: "
+                            f"{data['dialogue_segments']} dialogue segments, manual review needed"
+                        )
         
         result.cluster_assignments = assignments
         result.recommendations = recommendations
@@ -671,10 +877,10 @@ class VoiceClusteringSystem:
                             import shutil
                             shutil.copy2(audio_file, target_file)
                             
-                            # Copy metadata if exists
-                            metadata_file = audio_file.with_suffix('.wav.json')
+                            # Copy metadata if exists  
+                            metadata_file = audio_file.with_suffix('.json')
                             if metadata_file.exists():
-                                target_metadata = target_file.with_suffix('.wav.json')
+                                target_metadata = target_file.with_suffix('.json')
                                 shutil.copy2(metadata_file, target_metadata)
                             
                             reorganized_count += 1

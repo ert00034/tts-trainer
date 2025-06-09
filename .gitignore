@@ -219,13 +219,27 @@ ehthumbs.db
 Thumbs.db
 
 # TTS Trainer Specific
-# Data files
+# Raw data files
 resources/videos/*
 !resources/videos/.gitkeep
+
+# Processed audio data
 resources/audio/*
 !resources/audio/.gitkeep
+resources/audio_small/
+
+# Generated transcripts
 resources/transcripts/*
 !resources/transcripts/.gitkeep
+
+# Speaker segmentation results
+resources/segments/
+
+# Voice clustering outputs
+resources/voice_clusters/
+resources/validation_samples*/
+
+# Datasets
 resources/datasets/*
 !resources/datasets/.gitkeep
 
@@ -240,6 +254,11 @@ artifacts/metrics/*
 # Logs
 logs/
 *.log
+
+# Analysis files
+speaker_analysis*.json
+voice_clustering_results*.json
+voice_embeddings*.pkl
 
 # Temporary files
 temp/
@@ -276,8 +295,7 @@ ffmpeg2pass-*.log.mbtree
 wandb/
 mlruns/
 
-# Local archives
+# Local archives and processed data
 archives/
 resources/segments_processed/
-resources/validation_samples/
-speaker_analysis_full.json
+resources/segments_processed_old/

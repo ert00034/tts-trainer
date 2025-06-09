@@ -630,6 +630,20 @@ async def create_validation_samples(args):
     
     print(f"🎧 Creating validation samples in: {output_dir}")
     
+    # Load all transcript files for full transcript generation
+    transcripts_dir = Path("resources/transcripts/transcripts")
+    all_transcripts = {}
+    
+    if transcripts_dir.exists():
+        print("📝 Loading transcript files for full transcript generation...")
+        for transcript_file in transcripts_dir.glob("*.json"):
+            try:
+                with open(transcript_file, 'r', encoding='utf-8') as f:
+                    transcript_data = json.load(f)
+                    all_transcripts[transcript_file.stem] = transcript_data
+            except Exception as e:
+                print(f"  ⚠️  Failed to load {transcript_file}: {e}")
+    
     # Process each cluster
     for cluster in data['clusters']:
         cluster_id = cluster['cluster_id']
@@ -660,6 +674,10 @@ async def create_validation_samples(args):
             else:
                 print(f"  ⚠️  Sample not found: {sample_path}")
         
+        # Generate full transcript for this cluster
+        cluster_transcript_file = char_dir / "full_transcript.txt"
+        _generate_cluster_transcript(cluster, data['speaker_mapping'], all_transcripts, cluster_transcript_file)
+        
         # Create a summary file for this cluster
         summary_file = char_dir / "cluster_info.txt"
         with open(summary_file, 'w') as f:
@@ -669,13 +687,114 @@ async def create_validation_samples(args):
             f.write(f"Episodes: {episodes}\n")
             f.write(f"Segments: {cluster['segment_count']}\n")
             f.write(f"Quality Score: {cluster.get('quality_score', 'N/A')}\n")
+            f.write(f"Original Speakers: {', '.join(cluster.get('original_speakers', []))}\n")
             f.write(f"\nFirst few episodes:\n")
             for ep in cluster['episodes'][:5]:
                 f.write(f"  - {ep}\n")
+            f.write(f"\nFiles in this directory:\n")
+            f.write(f"  - full_transcript.txt: Complete transcript of all dialogue\n")
+            f.write(f"  - 01_*.wav to 0{len(samples)}_*.wav: Representative audio samples\n")
     
     print(f"\n✅ Validation samples created in: {output_dir}")
     print("📝 Each cluster has a 'cluster_info.txt' file with details")
+    print("📄 Each cluster has a 'full_transcript.txt' with all dialogue")
     print("🎵 Audio files are numbered for easy sequential listening")
+
+
+def _generate_cluster_transcript(cluster, speaker_mapping, all_transcripts, output_file):
+    """Generate a full transcript file for a cluster."""
+    try:
+        cluster_id = cluster['cluster_id']
+        original_speakers = set(cluster.get('original_speakers', []))
+        
+        # Collect all dialogue from this cluster
+        all_dialogue = []
+        
+        # Iterate through episodes and find segments from speakers in this cluster
+        for episode_key, episode_speakers in speaker_mapping.items():
+            # Extract clean episode name (remove _SPEAKER suffix if present)
+            episode_name = episode_key.replace('_SPEAKER', '')
+            
+            # Check if we have transcript data for this episode
+            if episode_name not in all_transcripts:
+                continue
+            
+            transcript_data = all_transcripts[episode_name]
+            
+            # Find speakers in this episode that belong to our cluster
+            cluster_speakers_in_episode = set()
+            for speaker_id, mapped_cluster_id in episode_speakers.items():
+                if mapped_cluster_id == cluster_id:
+                    cluster_speakers_in_episode.add(speaker_id)
+            
+            if not cluster_speakers_in_episode:
+                continue
+            
+            # Extract dialogue from these speakers
+            episode_dialogue = []
+            for segment in transcript_data.get('segments', []):
+                speaker = segment.get('speaker')
+                if speaker in cluster_speakers_in_episode:
+                    text = segment.get('text', '').strip()
+                    start_time = segment.get('start', 0)
+                    if text:
+                        episode_dialogue.append({
+                            'episode': episode_name,
+                            'speaker': speaker,
+                            'time': start_time,
+                            'text': text
+                        })
+            
+            # Sort by time and add to overall collection
+            episode_dialogue.sort(key=lambda x: x['time'])
+            all_dialogue.extend(episode_dialogue)
+        
+        # Write the transcript file
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(f"FULL TRANSCRIPT - Cluster {cluster_id}\n")
+            f.write(f"Character: {cluster.get('assigned_character', 'unassigned')}\n")
+            f.write(f"Total Duration: {cluster['total_duration'] / 60:.1f} minutes\n")
+            f.write(f"Original Speakers: {', '.join(original_speakers)}\n")
+            f.write(f"Episodes: {len(cluster['episodes'])}\n")
+            f.write("=" * 60 + "\n\n")
+            
+            if not all_dialogue:
+                f.write("No dialogue found for this cluster.\n")
+                return
+            
+            # Group by episode for better readability
+            current_episode = None
+            for dialogue in all_dialogue:
+                if dialogue['episode'] != current_episode:
+                    current_episode = dialogue['episode']
+                    f.write(f"\n--- {current_episode} ---\n\n")
+                
+                # Format: [MM:SS] SPEAKER_XX: "dialogue"
+                minutes = int(dialogue['time'] // 60)
+                seconds = int(dialogue['time'] % 60)
+                f.write(f"[{minutes:02d}:{seconds:02d}] {dialogue['speaker']}: \"{dialogue['text']}\"\n")
+            
+            # Add summary statistics
+            f.write(f"\n" + "=" * 60 + "\n")
+            f.write(f"SUMMARY:\n")
+            f.write(f"Total lines: {len(all_dialogue)}\n")
+            
+            # Count by episode
+            episode_counts = {}
+            for dialogue in all_dialogue:
+                episode_counts[dialogue['episode']] = episode_counts.get(dialogue['episode'], 0) + 1
+            
+            f.write(f"Lines by episode:\n")
+            for episode, count in sorted(episode_counts.items()):
+                f.write(f"  {episode}: {count} lines\n")
+        
+        print(f"  📄 Generated full transcript: {len(all_dialogue)} dialogue lines")
+        
+    except Exception as e:
+        print(f"  ⚠️  Failed to generate transcript: {e}")
+        # Create a minimal file indicating the error
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(f"Error generating transcript for cluster {cluster['cluster_id']}: {e}\n")
 
 
 async def main():

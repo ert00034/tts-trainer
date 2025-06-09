@@ -19,6 +19,22 @@ import shutil
 logger = logging.getLogger(__name__)
 
 
+def convert_numpy_types(obj):
+    """Convert numpy types to JSON-serializable Python types."""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(v) for v in obj]
+    else:
+        return obj
+
+
 @dataclass
 class CharacterSegment:
     """A character-specific audio segment with metadata."""
@@ -218,7 +234,7 @@ class SpeakerSegmenter:
             filtered_segments = self._filter_segments(character_segments)
             
             # Save segments
-            saved_segments = self._save_segments(filtered_segments, output_path)
+            saved_segments = self._save_segments(filtered_segments, output_path, audio_file)
             
             # Calculate statistics
             character_counts = {}
@@ -264,7 +280,14 @@ class SpeakerSegmenter:
         """Extract character segments from audio using transcript data."""
         segments = []
         
-        for i, segment_data in enumerate(transcript_data.get('segments', [])):
+        # Sort segments by start time to process chronologically
+        sorted_segments = sorted(transcript_data.get('segments', []), key=lambda x: x.get('start', 0))
+        
+        # Track processed segments for deduplication
+        processed_segments = []
+        text_dedup_set = set()  # Track unique text to avoid duplicates
+        
+        for i, segment_data in enumerate(sorted_segments):
             start = segment_data.get('start', 0)
             end = segment_data.get('end', 0)
             text = segment_data.get('text', '').strip()
@@ -273,6 +296,44 @@ class SpeakerSegmenter:
             
             # Skip if no speaker identified or text is empty
             if not speaker or not text:
+                continue
+            
+            # Skip duplicated text (exact matches)
+            text_key = f"{speaker}:{text.lower()}"
+            if text_key in text_dedup_set:
+                logger.debug(f"Skipping duplicate text for {speaker}: {text[:50]}...")
+                continue
+            
+            # Check for overlapping segments with same speaker
+            overlaps_existing = False
+            for existing_segment in processed_segments:
+                if (existing_segment.character == self._map_speaker_to_character(speaker) and
+                    existing_segment.start < end and existing_segment.end > start):
+                    # Calculate overlap percentage
+                    overlap_start = max(start, existing_segment.start)
+                    overlap_end = min(end, existing_segment.end)
+                    overlap_duration = overlap_end - overlap_start
+                    current_duration = end - start
+                    existing_duration = existing_segment.end - existing_segment.start
+                    
+                    overlap_percent_current = overlap_duration / current_duration if current_duration > 0 else 0
+                    overlap_percent_existing = overlap_duration / existing_duration if existing_duration > 0 else 0
+                    
+                    # If significant overlap (>50%), skip the shorter/lower confidence segment
+                    if overlap_percent_current > 0.5 or overlap_percent_existing > 0.5:
+                        if current_duration < existing_duration or confidence < existing_segment.confidence:
+                            logger.debug(f"Skipping overlapping segment: {text[:50]}...")
+                            overlaps_existing = True
+                            break
+                        else:
+                            # Remove the existing segment and add this better one
+                            processed_segments = [s for s in processed_segments if s != existing_segment]
+                            # Also remove from text dedup set
+                            existing_text_key = f"{existing_segment.character}:{existing_segment.text.lower()}"
+                            text_dedup_set.discard(existing_text_key)
+                            break
+            
+            if overlaps_existing:
                 continue
             
             # Map speaker ID to character name
@@ -301,7 +362,7 @@ class SpeakerSegmenter:
             segment_filename = naming_pattern.format(
                 episode=episode_name,
                 character=character,
-                index=i
+                index=len(processed_segments)  # Use processed count instead of original index
             )
             
             segment = CharacterSegment(
@@ -316,8 +377,12 @@ class SpeakerSegmenter:
                 quality_score=quality_score
             )
             
+            # Add to processed segments and deduplication set
+            processed_segments.append(segment)
+            text_dedup_set.add(text_key)
             segments.append(segment)
         
+        logger.debug(f"Extracted {len(segments)} deduplicated segments from {len(sorted_segments)} original segments")
         return segments
     
     def _map_speaker_to_character(self, speaker_id: str) -> Optional[str]:
@@ -390,13 +455,19 @@ class SpeakerSegmenter:
         snr = 20 * np.log10(signal_level / noise_level)
         return max(0.0, snr)
     
-    def _save_segments(self, segments: List[CharacterSegment], output_path: Path) -> List[CharacterSegment]:
+    def _save_segments(self, segments: List[CharacterSegment], output_path: Path, 
+                     audio_file_path: Path) -> List[CharacterSegment]:
         """Save character segments to disk."""
         saved_segments = []
         character_counters = {}
         
-        # Load original audio files for segment extraction
-        audio_cache = {}
+        # Load the original audio file once
+        try:
+            logger.debug(f"Loading audio file: {audio_file_path}")
+            audio, sr = librosa.load(str(audio_file_path), sr=None)
+        except Exception as e:
+            logger.error(f"Failed to load audio file {audio_file_path}: {e}")
+            return saved_segments
         
         for segment in segments:
             try:
@@ -419,16 +490,40 @@ class SpeakerSegmenter:
                 character_dir = output_path / character
                 character_dir.mkdir(exist_ok=True)
                 
-                # Load original audio if not cached
-                if segment.original_file not in audio_cache:
-                    # This is a limitation - we need access to the original audio
-                    # For now, skip segment saving and just track metadata
-                    logger.debug(f"Would save segment: {segment_filename}")
-                    segment.segment_file = segment_filename
-                    saved_segments.append(segment)
+                # Extract audio segment
+                start_sample = int(segment.start * sr)
+                end_sample = int(segment.end * sr)
+                
+                if start_sample >= len(audio) or end_sample > len(audio):
+                    logger.warning(f"Segment extends beyond audio length: {segment_filename}")
                     continue
                 
+                segment_audio = audio[start_sample:end_sample]
+                
+                # Save audio file
+                segment_path = character_dir / segment_filename
+                sf.write(str(segment_path), segment_audio, sr)
+                
+                # Save metadata
+                metadata = {
+                    'original_file': str(audio_file_path),
+                    'start': segment.start,
+                    'end': segment.end,
+                    'duration': segment.duration,
+                    'text': segment.text,
+                    'speaker': segment.character,
+                    'confidence': segment.confidence,
+                    'quality_score': segment.quality_score
+                }
+                
+                metadata_path = segment_path.with_suffix('.json')
+                with open(metadata_path, 'w', encoding='utf-8') as f:
+                    json.dump(convert_numpy_types(metadata), f, indent=2, ensure_ascii=False)
+                
+                segment.segment_file = str(segment_path)
                 saved_segments.append(segment)
+                
+                logger.debug(f"Saved segment: {segment_filename}")
                 
             except Exception as e:
                 logger.warning(f"Failed to save segment {segment.segment_file}: {e}")
