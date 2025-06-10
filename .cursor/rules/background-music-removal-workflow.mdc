@@ -1,0 +1,87 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Background Music Removal Workflow Rule
+
+## CRITICAL PREREQUISITE FOR TRAINING
+
+### ❌ NEVER suggest training without background music removal first
+
+When working with TV shows, anime, or any content with background music (like Pokemon episodes), **ALWAYS** require background music removal before training.
+
+### Required Workflow Order
+
+1. **FIRST: Remove Background Music**
+   ```bash
+   python main.py remove-background-music --install  # First time only
+   python main.py remove-background-music             # Process validation samples
+   ```
+
+2. **THEN: Train with clean audio**
+   ```bash
+   python main.py train --model xtts_v2 --dataset manual_refs.txt
+   ```
+
+### When to Enforce This Rule
+
+#### ALWAYS Required For:
+- Pokemon episodes and anime content
+- TV shows with constant background music
+- Movies with musical soundtracks
+- Any content where background music is audible during dialogue
+
+#### Detection Keywords:
+- "Pokemon", "anime", "TV show", "episode"
+- "background music", "music in background"
+- "training quality issues", "raspy voices", "artifacts"
+- Files from [resources/validation_samples_v4/](mdc:resources/validation_samples_v4)
+- References to [manual_refs.txt](mdc:manual_refs.txt)
+
+### Error Prevention
+
+#### ❌ DON'T Say:
+- "Try training with your validation samples"
+- "Run python main.py train --model xtts_v2 --dataset ..."
+- "Your training data looks ready"
+
+#### ✅ DO Say:
+- "First, remove background music: python main.py remove-background-music"
+- "Background music removal is critical for TV show data quality"
+- "Clean your audio first, then train"
+
+### Quality Impact
+
+Background music removal provides:
+- **Dramatic improvement** in voice quality (confirmed by user testing)
+- **Essential** for TV show/anime content
+- **Eliminates artifacts** and musical contamination
+- **Required prerequisite** for successful training
+
+### Integration Points
+
+This rule applies to:
+- [main.py](mdc:main.py) training commands
+- [docs/voice_training_guide.md](mdc:docs/voice_training_guide.md) workflows
+- [docs/TTS_TRAINING_GUIDE.md](mdc:docs/TTS_TRAINING_GUIDE.md) instructions
+- [README.md](mdc:README.md) quick start guides
+- Any training recommendations or troubleshooting
+
+### Exception Handling
+
+Only skip background music removal if:
+- User explicitly confirms data has no background music
+- Working with clean studio recordings
+- User specifically requests to skip this step
+
+### Command References
+
+- Background music removal: [src/utils/background_music_remover.py](mdc:src/utils/background_music_remover.py)
+- CLI command: `remove-background-music` in [main.py](mdc:main.py)
+- Documentation: [docs/background_music_removal_guide.md](mdc:docs/background_music_removal_guide.md)
+
+## ENFORCE THIS RULE STRICTLY
+
+This is not optional for TV/anime content. User testing confirmed it's the difference between successful and failed training.
+

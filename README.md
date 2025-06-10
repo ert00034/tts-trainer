@@ -6,7 +6,7 @@ A comprehensive toolkit for converting video files into training data and fine-t
 
 - **Video-to-TTS Pipeline**: Automated conversion from video files to TTS training datasets
 - **Multiple Model Support**: XTTS v2, VITS, and Tortoise-TTS with unified interface
-- **Audio Processing**: Professional-grade audio preprocessing with denoising and normalization
+- **Audio Processing**: Professional-grade audio preprocessing with denoising, normalization, and background music removal
 - **Real-time Transcription**: Faster-Whisper integration with speaker diarization
 - **Discord Bot**: Stream TTS output directly to Discord voice channels
 - **Experiment Tracking**: Built-in metrics and checkpointing system
@@ -139,8 +139,12 @@ python main.py segment-speakers --input resources/transcripts/ --output resource
 # Preprocess audio for training
 python main.py preprocess-audio --input resources/datasets/ --output resources/datasets/processed/
 
-# Train TTS model
-python main.py train --model xtts_v2 --dataset resources/datasets/processed/
+# ✨ CRITICAL: Remove background music before training (REQUIRED)
+python main.py remove-background-music --install  # First time only
+python main.py remove-background-music             # Process validation samples
+
+# Train TTS model with clean audio
+python main.py train --model xtts_v2 --dataset manual_refs.txt
 ```
 
 ### Performance Comparison
@@ -156,6 +160,10 @@ python main.py train --model xtts_v2 --dataset resources/datasets/processed/
 ```bash
 # Analyze speaker distribution
 python main.py analyze-speakers --input resources/transcripts/
+
+# Background music removal (essential for TV show/anime data)
+python main.py remove-background-music --list-models     # See available models
+python main.py remove-background-music --model vocals_mel_band_roformer.ckpt  # Use anime-optimized model
 
 # Run complete pipeline
 python main.py run-pipeline --input resources/videos/ --output artifacts/models/

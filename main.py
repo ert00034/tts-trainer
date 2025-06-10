@@ -21,6 +21,9 @@ from src.models.base_trainer import ModelRegistry
 from src.utils.logging_utils import setup_logging
 from src.utils.file_utils import validate_input_path, create_output_dir
 
+# Import model trainers to register them with ModelRegistry
+from src.models.xtts.xtts_trainer import XTTSTrainer
+
 
 def setup_parser() -> argparse.ArgumentParser:
     """Setup the main argument parser with all subcommands."""
@@ -126,6 +129,15 @@ Examples:
     inference_parser.add_argument("--output", default="inference_output.wav", help="Output audio file")
     inference_parser.add_argument("--streaming", action="store_true", help="Enable streaming inference")
     
+    # Synthesize Command (alias for inference)
+    synthesize_parser = subparsers.add_parser("synthesize", help="Synthesize speech (alias for inference)")
+    synthesize_parser.add_argument("--model", required=True, help="Path to trained model or model name")
+    synthesize_parser.add_argument("--text", required=True, help="Text to synthesize")
+    synthesize_parser.add_argument("--reference", help="Path to reference audio file for voice cloning")
+    synthesize_parser.add_argument("--character", help="Character name for voice cloning (when using character profiles)")
+    synthesize_parser.add_argument("--output", default="synthesize_output.wav", help="Output audio file")
+    synthesize_parser.add_argument("--streaming", action="store_true", help="Enable streaming inference")
+    
     # Discord Bot Command
     bot_parser = subparsers.add_parser("discord-bot", help="Launch Discord bot")
     bot_parser.add_argument("--token", required=True, help="Discord bot token")
@@ -147,6 +159,20 @@ Examples:
                                           help="Output directory for validation samples")
     validation_samples_parser.add_argument("--samples-per-cluster", type=int, default=3, 
                                           help="Number of samples per cluster to copy")
+    
+    # Remove Background Music Command
+    remove_music_parser = subparsers.add_parser("remove-background-music", 
+                                               help="Remove background music from validation samples")
+    remove_music_parser.add_argument("--manual-refs", type=str, default="manual_refs.txt",
+                                   help="Path to manual_refs.txt file")
+    remove_music_parser.add_argument("--install", action="store_true", 
+                                   help="Install audio-separator first")
+    remove_music_parser.add_argument("--list-models", action="store_true",
+                                   help="List available vocal separation models")
+    remove_music_parser.add_argument("--model", default="UVR-MDX-NET-Voc_FT.onnx",
+                                   help="Model to use for separation")
+    remove_music_parser.add_argument("--output-suffix", default="_no_music",
+                                   help="Suffix to add to processed files")
     
     return parser
 
@@ -537,16 +563,18 @@ async def train_model(args):
             print(f"📊 Final metrics: {result.final_metrics}")
             
             # Show character-specific results
-            character_metrics = result.final_metrics.get('character_metrics', {})
-            if character_metrics:
+            character_list = result.final_metrics.get('character_list', [])
+            if character_list:
                 print(f"\n🎭 Character Voice Profiles Created:")
-                for character, metrics in character_metrics.items():
-                    speed = metrics.get('synthesis_speed', 0)
-                    print(f"   {character}: ⏱️ {speed:.2f}s synthesis test")
+                characters_trained = result.final_metrics.get('characters_trained', 0)
+                avg_synthesis_time = result.final_metrics.get('avg_synthesis_time', 0)
+                print(f"   📊 {characters_trained} characters trained")
+                print(f"   ⏱️ Average synthesis time: {avg_synthesis_time:.2f}s")
+                print(f"   🎭 Characters: {', '.join(character_list)}")
                 
                 print(f"\n💡 Test voices with:")
-                for character in character_metrics.keys():
-                    print(f"   python main.py inference --model {args.output}/character_voice_profiles.json --character {character} --text \"Hello, I'm {character}\"")
+                for character in character_list:
+                    print(f"   python main.py inference --model {args.output}/character_voices.json --character {character} --text \"Hello, I'm {character}\"")
         else:
             error_msg = getattr(result, 'error', 'Unknown error')
             print(f"❌ Training failed: {error_msg}")
@@ -570,7 +598,7 @@ async def run_inference(args):
         model = ModelRegistry.load_model(model_type, args.model)
         
         # Load character voice profiles if available
-        if hasattr(model, 'load_character_voices') and args.model.endswith('character_voice_profiles.json'):
+        if hasattr(model, 'load_character_voices') and args.model.endswith('character_voices.json'):
             model.load_character_voices(args.model)
             available_characters = model.list_available_characters()
             
@@ -856,6 +884,86 @@ def _generate_cluster_transcript(cluster, speaker_mapping, all_transcripts, outp
             f.write(f"Error generating transcript for cluster {cluster['cluster_id']}: {e}\n")
 
 
+async def remove_background_music(args):
+    """Remove background music from validation samples."""
+    from src.utils.background_music_remover import BackgroundMusicRemover
+    
+    print(f"🎵 Removing background music from validation samples")
+    
+    remover = BackgroundMusicRemover()
+    
+    if args.install:
+        print("Installing audio-separator...")
+        if remover.install_audio_separator():
+            print("✅ Installation successful!")
+        else:
+            print("❌ Installation failed!")
+            return 1
+    
+    if args.list_models:
+        print("Available vocal separation models:")
+        models = remover.get_available_models()
+        if models:
+            for model in models:
+                print(f"  - {model}")
+        else:
+            print("  No models found or audio-separator not available")
+        return 0
+    
+    if not remover.separator_available:
+        print("❌ audio-separator not available. Run with --install first.")
+        return 1
+    
+    # Validate manual refs file
+    manual_refs_path = Path(args.manual_refs)
+    if not manual_refs_path.exists():
+        print(f"❌ Manual refs file not found: {manual_refs_path}")
+        return 1
+    
+    print(f"📁 Processing files from: {manual_refs_path}")
+    print(f"🎯 Using model: {args.model}")
+    print(f"📝 Output suffix: {args.output_suffix}")
+    
+    # Process the validation samples
+    results = remover.process_validation_samples(
+        manual_refs_path, 
+        output_suffix=args.output_suffix
+    )
+    
+    if results:
+        print(f"\n✅ Successfully processed {len(results)} files:")
+        for original, processed in results.items():
+            original_name = Path(original).name
+            processed_name = Path(processed).name
+            print(f"  {original_name} → {processed_name}")
+        
+        print(f"\n💡 You can now use these processed files for training:")
+        print(f"   They should have significantly reduced background music!")
+        
+        # Update manual_refs.txt to point to processed files
+        update_refs = input("\nUpdate manual_refs.txt to use processed files? (y/N): ").strip().lower()
+        if update_refs == 'y':
+            # Read original file to preserve character mappings
+            original_lines = {}
+            with open(manual_refs_path, 'r') as f:
+                for line in f:
+                    if ':' in line:
+                        character, filepath = line.strip().split(':', 1)
+                        original_lines[filepath.strip()] = character
+            
+            # Write updated file
+            with open(manual_refs_path, 'w') as f:
+                for original, processed in results.items():
+                    character = original_lines.get(original, 'unknown')
+                    f.write(f"{character}:{processed}\n")
+            print(f"✅ Updated {manual_refs_path} to use processed files")
+    else:
+        print("❌ No files were processed successfully")
+        return 1
+    
+    return 0
+
+
 async def main():
     """Main entry point."""
     parser = setup_parser()
@@ -880,9 +988,11 @@ async def main():
         "cluster-voices": cluster_voices,
         "train": train_model,
         "inference": run_inference,
+        "synthesize": run_inference,  # alias for inference
         "discord-bot": launch_discord_bot,
         "validate": validate_data,
         "create-validation-samples": create_validation_samples,
+        "remove-background-music": remove_background_music,
     }
     
     handler = handlers.get(args.command)

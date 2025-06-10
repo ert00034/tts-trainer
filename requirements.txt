@@ -76,6 +76,7 @@ memory-profiler>=0.61.0
 # Enhanced Audio Preprocessing for Vocal Fry Removal
 demucs>=4.0.0  # Vocal separation for better denoising
 resemble-enhance>=0.0.1  # Voice enhancement (may need manual install from GitHub)
+audio-separator>=0.34.0  # Background music removal using UVR models
 
 # Optional: Advanced Audio Processing (uncomment if needed)
 # essentia>=2.1b6.dev1034  # Advanced audio analysis

@@ -285,6 +285,13 @@ models/
 *.bin
 *.safetensors
 
+# Audio files (generated content, can be large)
+*.wav
+*.mp3
+*.flac
+*.aac
+*.m4a
+
 # Audio processing temporary files
 *.wav.tmp
 *.mp3.tmp
@@ -310,7 +317,20 @@ run_*.py
 multi_reference_trainer.py
 setup_cuda.py
 
+# Python cache files (additional patterns)
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Large model directories (placeholder directories with no committed content)
+src/models/tortoise/
+src/models/vits/
+
+# Migration and planning documents (generated/temporary)
+docs/IndexTTS_Migration_Plan.md
+
 # Workflow documentation (generated/temporary)
 *.md
 !README.md
 !docs/**/*.md
+!.cursor/rules/*.mdc

@@ -99,9 +99,12 @@ artifacts/character_voices/meowth_multi_test/
 ## Typical Workflow
 
 1. **Setup**: Add references to `manual_refs.txt`
-2. **Test**: Run `python test_manual_refs_basic.py`
-3. **Train**: Run `python multi_reference_trainer.py --references temp/manual_refs_basic/*.wav`
-4. **Evaluate**: Listen to results in `artifacts/character_voices/meowth_multi_test/`
+2. **🎵 CRITICAL: Remove Background Music**: Run `python main.py remove-background-music`
+3. **Test**: Run `python test_manual_refs_basic.py`
+4. **Train**: Run `python multi_reference_trainer.py --references temp/manual_refs_basic/*.wav`
+5. **Evaluate**: Listen to results in `artifacts/character_voices/meowth_multi_test/`
+
+**Note**: Background music removal is essential for TV show/anime content and dramatically improves training results.
 
 ## Key Features
 
