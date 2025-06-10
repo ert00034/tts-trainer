@@ -1,3 +1,7 @@
 meowth:resources/validation_samples_v4/meowth/Pokemon S01E17 Island of Giant Pokemon_SPEAKER_15_006_no_music.wav
 meowth:resources/validation_samples_v4/meowth/Pokemon S01E17 Island of Giant Pokemon_SPEAKER_15_007_no_music.wav
 meowth:resources/validation_samples_v4/meowth/Pokemon S01E79 Fourth Round Rumble_SPEAKER_20_009_no_music.wav
+meowth:resources/validation_samples_v4/meowth/Pokemon S01E44 The Problem with Paras_SPEAKER_12_022_no_music.wav
+meowth:resources/validation_samples_v4/meowth/Pokemon S01E46 Attack of the Prehistoric Pokemon_SPEAKER_12_008_no_music.wav
+meowth:resources/validation_samples_v4/meowth/Pokemon S01E49 So Near, Yet So Farfetch'd_SPEAKER_08_013_no_music.wav
+meowth:resources/validation_samples_v4/meowth/Pokemon S01E50 Who Gets to Keep Togepi_SPEAKER_09_002_no_music.wav

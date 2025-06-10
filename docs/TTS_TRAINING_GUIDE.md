@@ -1,4 +1,8 @@
-# TTS Training Guide: Character Voice Cloning with XTTS v2
+# TTS Training Guide: Character Voice Cloning
+
+> **📋 Quick Start with IndexTTS (Recommended):**  
+> For immediate voice cloning without training, use IndexTTS:  
+> `python setup_indextts.py && python test_indextts.py`
 
 This guide explains how to use the new TTS training system to create character voice profiles and synthesize speech using voice cloning.
 

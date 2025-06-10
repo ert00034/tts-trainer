@@ -23,6 +23,7 @@ from src.utils.file_utils import validate_input_path, create_output_dir
 
 # Import model trainers to register them with ModelRegistry
 from src.models.xtts.xtts_trainer import XTTSTrainer
+from src.models.indextts.indextts_trainer import IndexTTSTrainer
 
 
 def setup_parser() -> argparse.ArgumentParser:
@@ -57,7 +58,7 @@ Examples:
     pipeline_parser = subparsers.add_parser("run-pipeline", help="Run the full video-to-model pipeline")
     pipeline_parser.add_argument("--input", required=True, help="Input directory containing video files")
     pipeline_parser.add_argument("--output", required=True, help="Output directory for trained models")
-    pipeline_parser.add_argument("--model", default="xtts_v2", choices=["xtts_v2", "vits", "tortoise"], 
+    pipeline_parser.add_argument("--model", default="indextts", choices=["indextts", "xtts_v2", "vits", "tortoise"], 
                                  help="Model type to train")
     pipeline_parser.add_argument("--skip-training", action="store_true", 
                                  help="Skip training, only prepare dataset")
@@ -112,7 +113,7 @@ Examples:
     
     # Train Command
     train_parser = subparsers.add_parser("train", help="Train a TTS model")
-    train_parser.add_argument("--model", required=True, choices=["xtts_v2", "vits", "tortoise"],
+    train_parser.add_argument("--model", required=True, choices=["indextts", "xtts_v2", "vits", "tortoise"],
                               help="Model type to train")
     train_parser.add_argument("--dataset", required=True, help="Path to training dataset")
     train_parser.add_argument("--output", default="artifacts/models/", help="Output directory for trained model")
@@ -122,7 +123,7 @@ Examples:
     
     # Inference Command
     inference_parser = subparsers.add_parser("inference", help="Test model inference")
-    inference_parser.add_argument("--model", required=True, help="Path to trained model or model name")
+    inference_parser.add_argument("--model", required=True, help="Path to trained model or model name (indextts, xtts_v2, etc.)")
     inference_parser.add_argument("--text", required=True, help="Text to synthesize")
     inference_parser.add_argument("--reference", help="Path to reference audio file for voice cloning")
     inference_parser.add_argument("--character", help="Character name for voice cloning (when using character profiles)")
