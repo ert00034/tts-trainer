@@ -21,7 +21,7 @@ try:
     SPEECHBRAIN_AVAILABLE = True
 except ImportError:
     SPEECHBRAIN_AVAILABLE = False
-    logging.warning("SpeechBrain not available - will use alternative embedding method")
+    logging.error("SpeechBrain not available. Please install it with 'pip install speechbrain'. Voice clustering cannot proceed without it.")
 
 from sklearn.cluster import DBSCAN, AgglomerativeClustering
 from sklearn.metrics.pairwise import cosine_similarity
@@ -112,12 +112,12 @@ class VoiceClusteringSystem:
                 'device': 'cuda',
                 'normalize': True,
                 'max_audio_length': 10.0,  # Max seconds per segment for embedding
-                'min_audio_length': 1.0,   # Min seconds per segment
+                'min_audio_length': 1.5,   # Min seconds per segment
             },
             'clustering': {
                 'algorithm': 'dbscan',  # 'dbscan', 'hierarchical', 'kmeans'
-                'eps': 0.3,             # DBSCAN epsilon (distance threshold)
-                'min_samples': 3,       # DBSCAN minimum samples per cluster
+                'eps': 0.25,             # DBSCAN epsilon (distance threshold)
+                'min_samples': 5,       # DBSCAN minimum samples per cluster
                 'n_clusters': None,     # Number of clusters (for hierarchical/kmeans)
                 'linkage': 'ward',      # Linkage method for hierarchical clustering
                 'distance_metric': 'cosine',
@@ -141,8 +141,8 @@ class VoiceClusteringSystem:
     def _initialize_embedding_model(self):
         """Initialize the voice embedding model."""
         if not SPEECHBRAIN_AVAILABLE:
-            logger.warning("SpeechBrain not available - using fallback embedding method")
-            return
+            logger.error("SpeechBrain is not installed, which is required for high-quality voice embeddings.")
+            raise ImportError("SpeechBrain not found. Please run 'pip install speechbrain'.")
         
         try:
             model_name = self.config['embedding']['model']
@@ -346,8 +346,9 @@ class VoiceClusteringSystem:
                 embedding = self.embedding_model.encode_batch(audio_tensor)
                 embedding = embedding.squeeze().cpu().numpy()
             else:
-                # Fallback: use spectral features
-                embedding = self._extract_spectral_features(audio, sr)
+                # This part is removed to enforce SpeechBrain usage
+                logger.error("SpeechBrain model not loaded. Cannot extract high-quality embedding.")
+                return None
             
             # Normalize if requested
             if self.config['embedding']['normalize'] and embedding is not None:
@@ -359,41 +360,12 @@ class VoiceClusteringSystem:
             logger.debug(f"Failed to extract embedding from {audio_file.name}: {e}")
             return None
     
-    def _extract_spectral_features(self, audio: np.ndarray, sr: int) -> np.ndarray:
-        """Fallback method: extract spectral features as voice embedding."""
-        try:
-            # Extract MFCC features
-            mfccs = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=13)
-            
-            # Extract spectral features
-            spectral_centroids = librosa.feature.spectral_centroid(y=audio, sr=sr)
-            spectral_rolloff = librosa.feature.spectral_rolloff(y=audio, sr=sr)
-            zero_crossing_rate = librosa.feature.zero_crossing_rate(audio)
-            
-            # Compute statistics
-            features = []
-            for feature in [mfccs, spectral_centroids, spectral_rolloff, zero_crossing_rate]:
-                features.extend([
-                    np.mean(feature),
-                    np.std(feature),
-                    np.median(feature)
-                ])
-            
-            return np.array(features)
-            
-        except Exception as e:
-            logger.debug(f"Failed to extract spectral features: {e}")
-            return None
-    
     def _perform_clustering(self, embeddings: List[VoiceEmbedding]) -> ClusteringResult:
         """Perform clustering on voice embeddings."""
         # Prepare embedding matrix
         embedding_matrix = np.array([emb.embedding for emb in embeddings])
         
-        # Standardize features if using spectral features
-        if not SPEECHBRAIN_AVAILABLE:
-            scaler = StandardScaler()
-            embedding_matrix = scaler.fit_transform(embedding_matrix)
+        # We no longer support a fallback that would need scaling
         
         # Perform clustering
         algorithm = self.config['clustering']['algorithm']
@@ -675,7 +647,8 @@ class VoiceClusteringSystem:
             
             # Apply bonuses for main character indicators
             for character in ['ash', 'misty', 'brock']:
-                char_scores[character] *= (0.5 + 0.5 * duration_factor * episode_factor)
+                if char_scores.get(character):
+                    char_scores[character] *= (0.5 + 0.5 * duration_factor * episode_factor)
             
             cluster_scores[cluster.cluster_id] = {
                 'char_scores': char_scores,
@@ -701,7 +674,7 @@ class VoiceClusteringSystem:
         
         # First pass: assign high-confidence single-character matches
         for cluster_id, data in dialogue_clusters:
-            if not data['is_mixed']:  # Only assign single-character clusters first
+            if not data['is_mixed'] or len(data['significant_chars']) == 1:
                 best_char = max(data['char_scores'].items(), key=lambda x: x[1])
                 char_name, score = best_char
                 
@@ -715,29 +688,47 @@ class VoiceClusteringSystem:
                         f"{data['total_duration']/60:.1f}min across {data['episodes']} episodes"
                     )
         
-        # Second pass: handle mixed clusters - assign to highest scoring unused character
-        mixed_clusters = [(cluster_id, data) for cluster_id, data in dialogue_clusters if data['is_mixed']]
+        # Second pass: handle mixed clusters
+        mixed_clusters = [(cluster_id, data) for cluster_id, data in dialogue_clusters if data['is_mixed'] and cluster_id not in assignments]
         for cluster_id, data in mixed_clusters:
-            # Find best unused character
-            available_scores = {char: score for char, score in data['char_scores'].items() 
-                             if char not in used_characters and char in pokemon_chars}
+            significant_chars = data['significant_chars']
+            
+            # Try to find a dominant character in the mix
+            available_scores = {char: score for char, score in data['char_scores'].items() if char in significant_chars and char not in used_characters}
             
             if available_scores:
-                best_char = max(available_scores.items(), key=lambda x: x[1])
-                char_name, score = best_char
+                sorted_scores = sorted(available_scores.items(), key=lambda x: x[1], reverse=True)
+                best_char, best_score = sorted_scores[0]
+
+                # Condition for being dominant: score is high enough and significantly larger than the next
+                is_dominant = False
+                if best_score > 0.05:
+                    if len(sorted_scores) == 1:
+                        is_dominant = True
+                    elif len(sorted_scores) > 1:
+                        second_best_score = sorted_scores[1][1]
+                        if best_score > second_best_score * 2:
+                            is_dominant = True
                 
-                if score > 0.05:  # Lower threshold for mixed clusters
-                    assignments[cluster_id] = char_name
-                    used_characters.add(char_name)
-                    
+                if is_dominant:
+                    assignments[cluster_id] = best_char
+                    used_characters.add(best_char)
                     recommendations.append(
-                        f"Cluster {cluster_id} → {char_name}: "
-                        f"MIXED CLUSTER (also has {', '.join(data['significant_chars'])}), "
-                        f"content score {score:.2f}, {data['dialogue_segments']} dialogue segments, "
-                        f"{data['total_duration']/60:.1f}min across {data['episodes']} episodes"
+                        f"Cluster {cluster_id} → {best_char}: "
+                        f"DOMINANT in MIXED CLUSTER (others: {', '.join(significant_chars)}), "
+                        f"score {best_score:.2f}, {data['dialogue_segments']} segments"
                     )
-        
-        # Third pass: assign remaining main characters by duration
+                    continue
+
+            # Otherwise, label as mixed
+            mixed_name = f"mixed_cluster_{cluster_id}"
+            assignments[cluster_id] = mixed_name
+            recommendations.append(
+                f"Cluster {cluster_id} → {mixed_name}: "
+                f"MIXED CLUSTER detected: {', '.join(significant_chars)}. Manual review required."
+            )
+
+        # Third pass: assign remaining high-quality clusters
         remaining_main_chars = [c for c in pokemon_chars if c not in used_characters]
         unassigned_clusters = [
             (cluster_id, data) for cluster_id, data in dialogue_clusters
@@ -747,14 +738,23 @@ class VoiceClusteringSystem:
         for i, (cluster_id, data) in enumerate(unassigned_clusters):
             if i < len(remaining_main_chars):
                 char_name = remaining_main_chars[i]
-                assignments[cluster_id] = char_name
-                used_characters.add(char_name)
                 
-                recommendations.append(
-                    f"Cluster {cluster_id} → {char_name}: "
-                    f"fallback assignment, {data['dialogue_segments']} dialogue segments, "
-                    f"{data['total_duration']/60:.1f}min across {data['episodes']} episodes"
-                )
+                # Add a quality check before assigning
+                if data['total_duration'] > 60 and data['episodes'] > 3:
+                     assignments[cluster_id] = char_name
+                     used_characters.add(char_name)
+                     recommendations.append(
+                         f"Cluster {cluster_id} → {char_name}: "
+                         f"Fallback assignment (high quality), {data['dialogue_segments']} segments, "
+                         f"{data['total_duration']/60:.1f}min across {data['episodes']} episodes"
+                     )
+                else:
+                    unassigned_name = f"major_character_unknown_{cluster_id}"
+                    assignments[cluster_id] = unassigned_name
+                    recommendations.append(
+                        f"Cluster {cluster_id} → {unassigned_name}: "
+                        f"Unassigned major cluster. Quality too low for fallback assignment."
+                    )
         
         # Fourth pass: assign theme song and minor clusters
         all_clusters = sorted(result.clusters, key=lambda c: c.total_duration, reverse=True)
@@ -770,7 +770,7 @@ class VoiceClusteringSystem:
                     narrator_assigned = True
                     recommendations.append(
                         f"Cluster {cluster.cluster_id} → narrator: "
-                        f"theme song cluster ({data['theme_ratio']*100:.0f}% theme), "
+                        f"Likely theme song cluster ({data['theme_ratio']*100:.0f}% theme), "
                         f"{data['total_duration']/60:.1f}min"
                     )
                 else:

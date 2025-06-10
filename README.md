@@ -6,7 +6,7 @@ A comprehensive toolkit for converting video files into training data and fine-t
 
 - **Video-to-TTS Pipeline**: Automated conversion from video files to TTS training datasets
 - **Multiple Model Support**: XTTS v2, VITS, and Tortoise-TTS with unified interface
-- **Audio Processing**: Professional-grade audio preprocessing with denoising and normalization
+- **Audio Processing**: Professional-grade audio preprocessing with denoising, normalization, and background music removal
 - **Real-time Transcription**: Faster-Whisper integration with speaker diarization
 - **Discord Bot**: Stream TTS output directly to Discord voice channels
 - **Experiment Tracking**: Built-in metrics and checkpointing system
@@ -109,6 +109,28 @@ pip install torch torchaudio torchvision
 pip install -r requirements.txt
 ```
 
+### IndexTTS Setup (Recommended)
+
+IndexTTS offers superior performance for English voice cloning:
+
+```bash
+# One-time setup (downloads ~5GB models)
+python setup_indextts.py
+
+# Test voice cloning with your reference audio
+python test_indextts.py
+
+# Quick test with any audio file
+python main.py inference --model indextts --text "Hello world!" --reference path/to/your/audio.wav --output test.wav
+```
+
+**Benefits of IndexTTS:**
+- ✅ **60% better accuracy** than XTTS v2 (1.2% vs 3.0% Word Error Rate)
+- ✅ **10-30% improved speaker similarity** (0.741-0.8 vs 0.634-0.681 cosine similarity)
+- ✅ **No training required** - immediate voice cloning from 5+ seconds of audio
+- ✅ **English-optimized** - Simplified setup focused on English language support
+- ✅ **Production-ready** - Industrial-grade stability and performance
+
 ### Speaker Diarization Setup
 
 For speaker identification features, you need HuggingFace authentication:
@@ -139,8 +161,18 @@ python main.py segment-speakers --input resources/transcripts/ --output resource
 # Preprocess audio for training
 python main.py preprocess-audio --input resources/datasets/ --output resources/datasets/processed/
 
-# Train TTS model
-python main.py train --model xtts_v2 --dataset resources/datasets/processed/
+# ✨ CRITICAL: Remove background music before training (REQUIRED)
+python main.py remove-background-music --install  # First time only
+python main.py remove-background-music             # Process validation samples
+
+# Setup IndexTTS (one-time setup - recommended)
+python setup_indextts.py
+
+# Train TTS model with clean audio (IndexTTS is now default)
+python main.py train --model indextts --dataset manual_refs.txt
+
+# Alternative: Use XTTS v2 
+python main.py train --model xtts_v2 --dataset manual_refs.txt
 ```
 
 ### Performance Comparison
@@ -157,6 +189,10 @@ python main.py train --model xtts_v2 --dataset resources/datasets/processed/
 # Analyze speaker distribution
 python main.py analyze-speakers --input resources/transcripts/
 
+# Background music removal (essential for TV show/anime data)
+python main.py remove-background-music --list-models     # See available models
+python main.py remove-background-music --model vocals_mel_band_roformer.ckpt  # Use anime-optimized model
+
 # Run complete pipeline
 python main.py run-pipeline --input resources/videos/ --output artifacts/models/
 
@@ -168,7 +204,26 @@ python main.py discord-bot --token YOUR_DISCORD_TOKEN
 
 ### Model Configuration
 
-Edit `config/models/xtts_v2.yaml` for XTTS v2 settings:
+**IndexTTS Configuration** (`config/models/indextts.yaml`):
+
+```yaml
+model:
+  name: "indextts"
+  model_dir: "checkpoints/IndexTTS-1.5"
+  device: "cuda"
+  precision: "fp16"
+
+voice_cloning:
+  min_reference_length: 5.0
+  max_reference_length: 30.0
+  reference_sample_rate: 24000
+
+synthesis:
+  temperature: 0.75
+  speed: 1.0
+```
+
+**XTTS v2 Configuration** (`config/models/xtts_v2.yaml`):
 
 ```yaml
 model:
@@ -179,11 +234,6 @@ model:
 streaming:
   chunk_size: 2048
   overlap: 256
-  
-training:
-  batch_size: 8
-  learning_rate: 1e-4
-  epochs: 10
 ```
 
 ### Audio Processing
@@ -238,6 +288,7 @@ The Discord bot provides real-time TTS streaming:
 
 | Model | Training Time | Quality | Real-time Capable | Use Case |
 |-------|---------------|---------|-------------------|----------|
+| **IndexTTS** | No training needed | Excellent | ✅ | Industrial-grade voice cloning (English optimized) |
 | **XTTS v2** | No training needed | High | ✅ | Quick voice cloning |
 | **VITS** | 30 min on 4090 | Very High | ✅ | Fine-tuned quality |
 | **Tortoise-TTS** | 2-4 hours | Ultra High | ❌ | Studio-quality offline |
@@ -323,4 +374,20 @@ python main.py preprocess-audio --input resources/audio/ --validate-only
 
 # Check supported formats
 python -c "import librosa; print('LibROSA OK')"
+```
+
+### IndexTTS Issues
+
+```bash
+# Test IndexTTS installation
+python -c "import sys; sys.path.append('checkpoints/index-tts'); import indextts; print('IndexTTS OK')"
+
+# Re-setup IndexTTS if issues
+python setup_indextts.py --force
+
+# Test voice cloning
+python test_indextts.py
+
+# Check model files
+ls -la checkpoints/IndexTTS-1.5/
 ``` 

@@ -269,7 +269,14 @@ python multi_reference_trainer.py --references temp/manual_refs_basic/*.wav
 - Scripts automatically clean temp directories
 - But verify they're clean if you see unexpected behavior
 
-### 4. Check Quality Scores
+### 4. Remove Background Music FIRST (Critical for TV/Anime)
+```bash
+# For Pokemon episodes and other TV shows, this is ESSENTIAL:
+python main.py remove-background-music --install  # First time only
+python main.py remove-background-music             # Process validation samples
+```
+
+### 5. Check Quality Scores
 - Basic preprocessing: Should see reasonable quality scores (6-8/10)
 - Enhanced preprocessing: Should see improvement in quality scores
 - If quality gets worse, use basic preprocessing instead

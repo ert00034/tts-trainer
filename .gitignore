@@ -278,10 +278,23 @@ discord_token.txt
 
 # Model downloads
 models/
+!src/models/
+!src/models/**
 *.pth
 *.pt
 *.bin
 *.safetensors
+
+# IndexTTS model checkpoints (large files ~5GB)
+checkpoints/
+!checkpoints/.gitkeep
+
+# Audio files (generated content, can be large)
+*.wav
+*.mp3
+*.flac
+*.aac
+*.m4a
 
 # Audio processing temporary files
 *.wav.tmp
@@ -304,11 +317,23 @@ resources/segments_processed_old/
 # Experimental and temporary Python files
 manual_character_training*.py
 test_*.py
+!test_indextts.py
 run_*.py
 multi_reference_trainer.py
 setup_cuda.py
+!setup_indextts.py
+
+# Python cache files (additional patterns)
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Large model directories (placeholder directories with no committed content)
+src/models/tortoise/
+src/models/vits/
 
 # Workflow documentation (generated/temporary)
 *.md
 !README.md
 !docs/**/*.md
+!.cursor/rules/*.mdc

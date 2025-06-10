@@ -195,44 +195,64 @@ python test_enhanced_preprocessing.py
    meowth:resources/validation_samples_v4/meowth/Pokemon S01E79 Fourth Round Rumble_SPEAKER_20_009.wav
    ```
 
-2. **Test Basic Preprocessing**:
+2. **🎵 CRITICAL: Remove Background Music (REQUIRED for TV/Anime)**:
+   ```bash
+   python main.py remove-background-music --install  # First time only
+   python main.py remove-background-music             # Process validation samples
+   ```
+   This step is **essential** for Pokemon episodes and other TV shows with constant background music.
+
+3. **Test Basic Preprocessing**:
    ```bash
    python test_manual_refs_basic.py
    ```
 
-3. **Train with Multi-Reference Trainer**:
+4. **Train with Multi-Reference Trainer**:
    ```bash
    python multi_reference_trainer.py --references temp/manual_refs_basic/*.wav
    ```
 
-4. **Evaluate Results**: Check `artifacts/character_voices/meowth_multi_test/` for outputs
+5. **Evaluate Results**: Check `artifacts/character_voices/meowth_multi_test/` for outputs
 
 ### Workflow 2: Enhanced Processing (For Poor Quality Audio)
 
-1. **Test Enhanced Preprocessing**:
+1. **🎵 CRITICAL: Remove Background Music First**:
+   ```bash
+   python main.py remove-background-music --install  # First time only
+   python main.py remove-background-music             # Always run this first
+   ```
+
+2. **Test Enhanced Preprocessing**:
    ```bash
    python test_manual_refs_enhanced.py
    ```
 
-2. **Train with Enhanced Audio**:
+3. **Train with Enhanced Audio**:
    ```bash
    python multi_reference_trainer.py --references temp/manual_refs_enhanced/*.wav
    ```
 
-3. **Compare Results**: Compare basic vs enhanced preprocessing results
+4. **Compare Results**: Compare basic vs enhanced preprocessing results
 
 ### Workflow 3: Main CLI Pipeline
 
-1. **Full Pipeline**:
-   ```bash
-   python main.py run-pipeline --input resources/videos/ --output artifacts/models/
-   ```
-
-2. **Individual Stages**:
+1. **Individual Stages** (Recommended for control):
    ```bash
    python main.py extract-audio --input resources/videos/
    python main.py transcribe --input resources/audio/
-   python main.py train --model xtts_v2 --dataset resources/datasets/
+   python main.py segment-speakers --audio resources/audio/ --transcripts resources/transcripts/
+   
+   # 🎵 CRITICAL: Remove background music before training
+   python main.py remove-background-music --install  # First time only
+   python main.py remove-background-music             # Process validation samples
+   
+   python main.py train --model xtts_v2 --dataset manual_refs.txt
+   ```
+
+2. **Full Pipeline** (Note: Does NOT include background music removal):
+   ```bash
+   # ⚠️ WARNING: This skips background music removal step
+   python main.py run-pipeline --input resources/videos/ --output artifacts/models/
    ```
 
 ## Configuration Files

@@ -39,13 +39,20 @@ Path("temp").mkdir(exist_ok=True)
 ### Running the Pipeline
 ```powershell
 # Windows PowerShell commands
-# Full pipeline from videos to trained model
-python main.py run-pipeline --input resources\videos\ --output artifacts\models\
-
-# Individual stages
+# Individual stages (RECOMMENDED for TV/anime content)
 python main.py extract-audio --input resources\videos\
 python main.py transcribe --input resources\audio\
-python main.py train --model xtts_v2 --dataset resources\datasets\
+python main.py segment-speakers --audio resources\audio\ --transcripts resources\transcripts\
+
+# ✨ CRITICAL: Remove background music before training (REQUIRED for TV/anime)
+python main.py remove-background-music --install  # First time only
+python main.py remove-background-music             # Process validation samples
+
+# Train with clean audio
+python main.py train --model xtts_v2 --dataset manual_refs.txt
+
+# Full pipeline (WARNING: Skips background music removal)
+python main.py run-pipeline --input resources\videos\ --output artifacts\models\
 ```
 
 ### Configuration Management

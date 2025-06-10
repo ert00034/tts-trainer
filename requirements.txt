@@ -15,6 +15,12 @@ PyYAML>=6.0
 coqui-tts>=0.26.0  # New maintained fork of Coqui TTS for XTTS v2 and VITS (supports Python 3.12)
 # tortoise-tts>=2.8.0  # May have Python 3.12 compatibility issues, commented out for now
 
+# IndexTTS Support (English-focused)
+# indextts>=1.5.0  # Main IndexTTS package - commented until we test installation
+transformers>=4.45.0  # Required for IndexTTS models
+tokenizers>=0.20.0    # Text tokenization for IndexTTS
+safetensors>=0.4.0    # Model weight loading
+
 # Speech Recognition
 faster-whisper>=0.10.0
 openai-whisper>=20231117
@@ -76,6 +82,7 @@ memory-profiler>=0.61.0
 # Enhanced Audio Preprocessing for Vocal Fry Removal
 demucs>=4.0.0  # Vocal separation for better denoising
 resemble-enhance>=0.0.1  # Voice enhancement (may need manual install from GitHub)
+audio-separator>=0.34.0  # Background music removal using UVR models
 
 # Optional: Advanced Audio Processing (uncomment if needed)
 # essentia>=2.1b6.dev1034  # Advanced audio analysis

@@ -1,4 +1,8 @@
-# TTS Training Guide: Character Voice Cloning with XTTS v2
+# TTS Training Guide: Character Voice Cloning
+
+> **📋 Quick Start with IndexTTS (Recommended):**  
+> For immediate voice cloning without training, use IndexTTS:  
+> `python setup_indextts.py && python test_indextts.py`
 
 This guide explains how to use the new TTS training system to create character voice profiles and synthesize speech using voice cloning.
 
@@ -35,17 +39,27 @@ python test_tts_training.py --check-only
 
 This will show you available character datasets and their statistics.
 
-### 3. Train Character Voice Profiles
+### 3. Remove Background Music (CRITICAL STEP)
 
 ```bash
-# Create voice profiles for all characters:
-python main.py train --model xtts_v2 --dataset resources/validation_samples_v4 --output artifacts/character_voices
+# ✨ ESSENTIAL: Remove background music before training
+python main.py remove-background-music --install  # First time only
+python main.py remove-background-music             # Process validation samples
 
-# Or use the demo script:
+# This step dramatically improves voice quality for TV shows/anime
+```
+
+### 4. Train Character Voice Profiles
+
+```bash
+# Create voice profiles using clean audio files:
+python main.py train --model xtts_v2 --dataset manual_refs.txt --output artifacts/character_voices
+
+# Or use the demo script (after background music removal):
 python test_tts_training.py
 ```
 
-### 4. Test Voice Synthesis
+### 5. Test Voice Synthesis
 
 ```bash
 # Test with a specific character:
