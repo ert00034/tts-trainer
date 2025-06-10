@@ -278,6 +278,8 @@ discord_token.txt
 
 # Model downloads
 models/
+!src/models/
+!src/models/**
 *.pth
 *.pt
 *.bin
